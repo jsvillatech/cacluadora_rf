@@ -15,9 +15,6 @@ requirements.txt
 .DS_Store
 Thumbs.db
 
-# Streamlit
-.streamlit/
-
 # Logs
 logs/
 *.log
