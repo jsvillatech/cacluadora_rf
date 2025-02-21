@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+.env/
+
+# Dependencies
+Pipfile
+Pipfile.lock
+requirements.txt
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/
+
+# Logs
+logs/
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
