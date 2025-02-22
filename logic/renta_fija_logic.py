@@ -240,20 +240,3 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     """
     flujo_pesos = [CFt / 100 * valor_nominal for CFt in lista_cfs]
     return flujo_pesos
-
-
-# Function to validate form inputs
-def validate_inputs(start, end, name, age):
-    """Validates form inputs and returns a list of errors (if any)."""
-    errors = []
-
-    if start < end:
-        errors.append("❌ Start Date must be greater than End Date.")
-
-    if not name.strip():
-        errors.append("❌ Name cannot be empty.")
-
-    if age < 18:
-        errors.append("❌ Age must be at least 18.")
-
-    return errors

@@ -1,5 +1,6 @@
 import pandas as pd
 from math import pow
+from datetime import date
 from logic.renta_fija_logic import (
     generar_fechas,
     calcular_diferencias_fechas_pago_cupon,
@@ -62,7 +63,7 @@ def generar_cashflows_df(
         "VP CF": vp_cfs,
         # "t*PV CF": round(t_pv_cf, 8),
         # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
-        "Flujo Pesos": flujo_pesos,
+        "Flujo Pesos ($)": flujo_pesos,
     }
 
     # 🔍 Ensure all columns have the same length
@@ -71,3 +72,34 @@ def generar_cashflows_df(
             raise ValueError(f"Column '{key}' has inconsistent length!")
 
     return pd.DataFrame(cashflows)
+
+
+def cupon_corrido_calc(df: pd.DataFrame, date_negociacion: date):
+
+    # Convert the date_negociacion to a pandas Timestamp
+    target_date = pd.to_datetime(date_negociacion, format="%d/%m/%Y")
+
+    # Ensure the 'Fechas Cupón' column is in datetime format
+    df["Fechas Cupón"] = pd.to_datetime(df["Fechas Cupón"], format="%d/%m/%Y")
+
+    # Filter dates that are less than or equal to the target date
+    valid_rows = df[df["Fechas Cupón"] <= target_date]
+
+    # Return the minimum valid date and the 'rate' column
+    if not valid_rows.empty:
+        # caclualte the cupon corrido
+        cupon_corrido = 0
+        min_date_row = valid_rows.loc[valid_rows["Fechas Cupón"].idxmax()]
+        date_difference = (target_date - min_date_row["Fechas Cupón"]).days
+
+        # defaults to the first cupon when negociacion date is less than the first cupon date
+        if min_date_row["Días Cupón"] == 0:
+            cupon_corrido = (df["CFt"][1] / df["Días Cupón"][1]) * date_difference
+        else:
+            cupon_corrido = (
+                min_date_row["CFt"] / min_date_row["Días Cupón"]
+            ) * date_difference
+
+        return cupon_corrido
+    else:
+        return None  # Return None if no valid date is found
