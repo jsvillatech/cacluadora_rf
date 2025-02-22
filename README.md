@@ -51,6 +51,7 @@ Este proyecto está bajo la licencia **MIT**. Consulta el archivo `LICENSE` para
 
 ---
 📈 **Supervisado por Viviana Martinez y Christian Rubio**
+
 🚀 **Desarrollado por [Jhoan S. Delgado V.](https://github.com/jsvillatech)**
 
 
