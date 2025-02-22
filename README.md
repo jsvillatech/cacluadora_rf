@@ -50,5 +50,7 @@ Este proyecto está bajo la licencia **MIT**. Consulta el archivo `LICENSE` para
 ¡Las contribuciones son bienvenidas! Si deseas mejorar esta aplicación, abre un **Pull Request** o reporta un problema en **Issues**.
 
 ---
+📈 **Supervisado por Viviana Martinez y Christian Rubio**
 🚀 **Desarrollado por [Jhoan S. Delgado V.](https://github.com/jsvillatech)**
+
 
