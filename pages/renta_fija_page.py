@@ -2,7 +2,11 @@ import streamlit as st
 from datetime import datetime
 import pandas as pd
 import numpy as np
-from utils.data import generar_cashflows_df, cupon_corrido_calc
+from utils.data import (
+    generar_cashflows_df,
+    cupon_corrido_calc,
+    clasificar_precio_limpio,
+)
 from utils.ui_helpers import display_errors
 
 
@@ -158,6 +162,7 @@ with main_header_col2:
             cupon_corrido_placeholder = st.empty()
         with col_results3:
             precio_limpio_placeholder = st.empty()
+            precio_limpio_placeholder_venta = st.empty()
 
 # 🔹 Initial default metric values
 precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
@@ -226,6 +231,7 @@ if submitted:
         valor_giro = (precio_sucio / 100) * valor_nominal
         cupon_corrido = cupon_corrido_calc(df=df, date_negociacion=fecha_negociacion)
         precio_limpio = precio_sucio - cupon_corrido
+        precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
 
         # 🔹 Update metrics dynamically using `st.empty()`
         precio_sucio_placeholder.metric(
@@ -238,3 +244,4 @@ if submitted:
         precio_limpio_placeholder.metric(
             label="**Precio Limpio**", value=f"{precio_limpio:.3f}%"
         )
+        precio_limpio_placeholder_venta.markdown(precio_limpio_venta.replace("\n", "  \n"))
