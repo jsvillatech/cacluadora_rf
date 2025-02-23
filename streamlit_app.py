@@ -1,10 +1,9 @@
 import streamlit as st
 
-
 st.set_page_config(
     page_title="Calculadora Financiera Interactiva",
-    page_icon=":material/finance_mode:",
     layout="wide",
+    page_icon="imgs/calc.ico",
     initial_sidebar_state="expanded",
 )
 
