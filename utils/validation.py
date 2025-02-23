@@ -1,4 +1,3 @@
-
 # validate form function
 def validate_inputs(
     valor_nominal,

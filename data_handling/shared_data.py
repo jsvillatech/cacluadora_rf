@@ -1,5 +1,3 @@
-
-
 def clasificar_precio_limpio(precio_limpio: float):
     """
     Clasifica el precio según su valor en relación con 100.

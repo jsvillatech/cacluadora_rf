@@ -103,4 +103,3 @@ def cupon_corrido_calc(df: pd.DataFrame, date_negociacion: date):
         return cupon_corrido
     else:
         return None  # Return None if no valid date is found
-

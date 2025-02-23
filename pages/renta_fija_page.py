@@ -1,14 +1,13 @@
 import streamlit as st
-from datetime import datetime
 import pandas as pd
 import numpy as np
-from data_handling.data import (
-    generar_cashflows_df,
-    cupon_corrido_calc,
-    clasificar_precio_limpio,
-)
+from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
+from data_handling.renta_fija_data import (
+    generar_cashflows_df,
+    cupon_corrido_calc,
+)
 
 
 # start from here
@@ -110,19 +109,18 @@ with main_header_col2:
         col_results1, col_results2, col_results3 = st.columns(3)
         with col_results1:
             precio_sucio_placeholder = st.empty()
+            precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
             valor_giro_placeholder = st.empty()
+            valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
         with col_results2:
             cupon_corrido_placeholder = st.empty()
+            cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
         with col_results3:
             precio_limpio_placeholder = st.empty()
+            precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
             precio_limpio_placeholder_venta = st.empty()
 
-# 🔹 Initial default metric values
-precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
-valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
-cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
-precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
-
+# Container for detailed table
 st.header("Tabla detallada")
 
 if submitted:
@@ -197,4 +195,6 @@ if submitted:
         precio_limpio_placeholder.metric(
             label="**Precio Limpio**", value=f"{precio_limpio:.3f}%"
         )
-        precio_limpio_placeholder_venta.markdown(precio_limpio_venta.replace("\n", "  \n"))
+        precio_limpio_placeholder_venta.markdown(
+            precio_limpio_venta.replace("\n", "  \n")
+        )
