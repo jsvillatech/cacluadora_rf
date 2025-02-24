@@ -1,17 +1,13 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
 from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.renta_fija_data import (
-    generar_cashflows_df,
-    cupon_corrido_calc,
-)
+from data_handling.tasa_fija_data import generar_cashflows_df
+from data_handling.shared_data import cupon_corrido_calc
 
 
 # start from here
-st.title("Calculadora Renta Fija")
+st.title("Calculadora Tasa Fija")
 st.divider()
 main_header_col1, main_header_col2 = st.columns(2)
 with main_header_col1:

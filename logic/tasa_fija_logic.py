@@ -1,7 +1,7 @@
 from math import pow
 
 
-def convertir_tasa_cupon(
+def convertir_tasa_cupon_tf(
     base_dias_anio: str,
     modalidad_tasa: str,
     periodicidad: str,
