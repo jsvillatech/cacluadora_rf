@@ -1,11 +1,11 @@
 import pandas as pd
 from math import pow
 from datetime import date
-from logic.renta_fija_logic import (
+from logic.renta_fija_logic import convertir_tasa_cupon
+from logic.shared_logic import (
     generar_fechas,
     calcular_diferencias_fechas_pago_cupon,
     calcular_numero_dias_descuento_cupon,
-    convertir_tasa_cupon,
     calcular_cupones_futuros_cf,
     calcular_vp_cfs,
     calcular_flujo_pesos,
