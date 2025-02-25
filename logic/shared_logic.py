@@ -134,7 +134,7 @@ def calcular_numero_dias_descuento_cupon(
     fecha_negociacion_dt = datetime.combine(fecha_negociacion, datetime.min.time())
     # Calcular diferencias
     diferencias = [
-        (datetime.strptime(fecha, "%d/%m/%Y") - fecha_negociacion_dt).days
+        max(0, (datetime.strptime(fecha, "%d/%m/%Y") - fecha_negociacion_dt).days)
         for fecha in lista_fechas_pago_cupon
     ]
     diferencias[0] = (

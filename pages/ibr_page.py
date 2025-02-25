@@ -197,6 +197,7 @@ if submitted:
         else:
             st.success("Datos de BanRep utilizados en el cálculo.")
 
+        df_errors_placeholder = st.empty()
         df = generar_cashflows_df_ibr(
             fecha_emision=fecha_emision,
             fecha_vencimiento=fecha_vencimiento,
@@ -209,30 +210,39 @@ if submitted:
             valor_nominal=valor_nominal,
             archivo_subido=uploaded_file,
         )
-        # show df
-        config = {
-            "CFt": st.column_config.NumberColumn(
-                "CFt", format="%.3f%%", help="Cupón Futuro"
-            ),
-            "VP CF": st.column_config.NumberColumn(
-                "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
-            ),
-        }
-        st.dataframe(df, use_container_width=True, height=500, column_config=config)
+        if isinstance(df, dict) and "error" in df:
+            df_errors_placeholder.error(df["error"])
+        else:
+            # show df
+            config = {
+                "CFt": st.column_config.NumberColumn(
+                    "CFt", format="%.3f%%", help="Cupón Futuro"
+                ),
+                "VP CF": st.column_config.NumberColumn(
+                    "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
+                ),
+            }
+            st.dataframe(df, use_container_width=True, height=500, column_config=config)
 
-        # Calculate new metric values
-        precio_sucio = df["VP CF"].sum()
-        valor_giro = (precio_sucio / 100) * valor_nominal
-        cupon_corrido = cupon_corrido_calc(df=df, date_negociacion=fecha_negociacion)
-        precio_limpio = precio_sucio - cupon_corrido
-        precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
+            # Calculate new metric values
+            precio_sucio = df["VP CF"].sum()
+            valor_giro = (precio_sucio / 100) * valor_nominal
+            cupon_corrido = cupon_corrido_calc(
+                df=df, date_negociacion=fecha_negociacion
+            )
+            precio_limpio = precio_sucio - cupon_corrido
+            precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
 
-        # Update metrics dynamically
-        precio_sucio_placeholder.metric("**Precio Sucio**", f"{precio_sucio:.3f}%")
-        valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
-        valor_nominal_placeholder.write(f"**Valor Nominal: ${valor_nominal:,.2f}**")
-        cupon_corrido_placeholder.metric("**Cupón Corrido**", f"{cupon_corrido:.3f}%")
-        precio_limpio_placeholder.metric("**Precio Limpio**", f"{precio_limpio:.3f}%")
-        precio_limpio_placeholder_venta.markdown(
-            precio_limpio_venta.replace("\n", "  \n")
-        )
+            # Update metrics dynamically
+            precio_sucio_placeholder.metric("**Precio Sucio**", f"{precio_sucio:.3f}%")
+            valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
+            valor_nominal_placeholder.write(f"**Valor Nominal: ${valor_nominal:,.2f}**")
+            cupon_corrido_placeholder.metric(
+                "**Cupón Corrido**", f"{cupon_corrido:.3f}%"
+            )
+            precio_limpio_placeholder.metric(
+                "**Precio Limpio**", f"{precio_limpio:.3f}%"
+            )
+            precio_limpio_placeholder_venta.markdown(
+                precio_limpio_venta.replace("\n", "  \n")
+            )

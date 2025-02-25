@@ -37,15 +37,20 @@ def generar_cashflows_df_ibr(
     dias_descuento_cupon = calcular_numero_dias_descuento_cupon(
         fecha_negociacion=fecha_negociacion, lista_fechas_pago_cupon=fechas_cupon
     )
-    tasa_convertida = convertir_tasa_cupon_ibr(
-        base_dias_anio=base_intereses,
-        periodicidad=periodo_cupon,
-        tasa_anual_cupon=tasa_cupon,
-        lista_fechas=fechas_cupon,
-        fecha_inicio=fecha_emision,
-        fecha_negociacion=fecha_negociacion,
-        archivo=archivo_subido,
-    )
+    # ⚠️ Handling missing IBR rate
+    try:
+        tasa_convertida = convertir_tasa_cupon_ibr(
+            base_dias_anio=base_intereses,
+            periodicidad=periodo_cupon,
+            tasa_anual_cupon=tasa_cupon,
+            lista_fechas=fechas_cupon,
+            fecha_inicio=fecha_emision,
+            fecha_negociacion=fecha_negociacion,
+            archivo=archivo_subido,
+        )
+    except ValueError as e:
+        return {"error": str(e)}  # Return error message instead of crashing
+
     cf_t = calcular_cupones_futuros_cf(
         valor_nominal_base=valor_nominal_base, tasas_periodicas=tasa_convertida
     )

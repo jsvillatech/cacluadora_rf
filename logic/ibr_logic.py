@@ -116,17 +116,22 @@ def convertir_tasa_cupon_ibr(
             raise ValueError(
                 "No se encontraron datos IBR en el rango de fechas especificado."
             )
-        tasas_ibr = tasas_ibr.iloc[:, 1]
-
+    # Convert list to a DataFrame
+    df_fechas_reales_ibr = pd.DataFrame({"Fecha": fechas_reales_ibr})
+    # Convert Fecha column to datetime format
+    df_fechas_reales_ibr["Fecha"] = pd.to_datetime(df_fechas_reales_ibr["Fecha"])
+    df_merged = df_fechas_reales_ibr.merge(tasas_ibr, on="Fecha", how="left")
     # Convertir a diccionario asegurando que la estructura es correcta
-    tasas_ibr_dict = dict(zip(fechas_reales_ibr, tasas_ibr.astype(float) / 100))
+    tasas_ibr_dict = dict(
+        zip(df_merged["Fecha"].dt.date, df_merged["Tasa_ibr_mes_nominal"] / 100)
+    )
 
     ### CASO 1: La fecha de negociación es la misma que la de emisión ###
     if fecha_inicio == fecha_negociacion:
         fecha_real_ibr = fecha_publicacion_ibr(fecha_inicio)
         tasa_ibr_real = tasas_ibr_dict.get(fecha_real_ibr, None)
 
-        if tasa_ibr_real is None:
+        if tasa_ibr_real is None or pd.isna(tasa_ibr_real):
             raise ValueError(
                 f"No se encontró la tasa IBR para la fecha: {fecha_real_ibr}."
             )
@@ -146,9 +151,10 @@ def convertir_tasa_cupon_ibr(
         fecha_real_ibr_1 = fecha_publicacion_ibr(fecha_inicio)
         tasa_ibr_1 = tasas_ibr_dict.get(fecha_real_ibr_1, None)
 
-        if tasa_ibr_1 is None:
+        if tasa_ibr_1 is None or pd.isna(tasa_ibr_1):
             raise ValueError(
-                f"No se encontró la tasa IBR para la fecha: {fecha_real_ibr_1}."
+                f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_1}.
+                Por favor usa la opcion de subir un archivo con las tasas proyectadas"""
             )
 
         # Calcular la tasa para el primer cupón
@@ -161,9 +167,10 @@ def convertir_tasa_cupon_ibr(
             fecha_real_ibr_i = fechas_reales_ibr[i]
             tasa_ibr_i = tasas_ibr_dict.get(fecha_real_ibr_i, None)
 
-            if tasa_ibr_i is None:
+            if tasa_ibr_i is None or pd.isna(tasa_ibr_i):
                 raise ValueError(
-                    f"No se encontró la tasa IBR para la fecha: {fecha_real_ibr_i}."
+                    f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_i}.
+                    Por favor usa la opcion de subir un archivo con las tasas proyectadss"""
                 )
 
             tasa_ibr_spread_i = tasa_ibr_i + tasa_anual_cupon
