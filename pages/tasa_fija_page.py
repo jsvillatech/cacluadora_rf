@@ -1,65 +1,13 @@
 import streamlit as st
-from datetime import datetime
-import pandas as pd
-import numpy as np
-from utils.data import (
-    generar_cashflows_df,
-    cupon_corrido_calc,
-    clasificar_precio_limpio,
-)
+from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
-
-
-# validate form function
-def validate_inputs(
-    valor_nominal,
-    fecha_emision,
-    fecha_vencimiento,
-    periodo_cupon,
-    tasa_cupon,
-    base_intereses,
-    fecha_negociacion,
-    tasa_mercado,
-    valor_nominal_base,
-):
-    """Validates form inputs and returns a dictionary of errors."""
-    errors = {}
-
-    # Lista de campos obligatorios y sus mensajes de error
-    required_fields = {
-        "valor_nominal": "❌ El valor nominal no puede estar vacío.",
-        "fecha_emision": "❌ La fecha de emisión no puede estar vacía.",
-        "fecha_vencimiento": "❌ La fecha de vencimiento no puede estar vacía.",
-        "periodo_cupon": "❌ El período del cupón no puede estar vacío.",
-        "tasa_cupon": "❌ La tasa del cupón no puede estar vacía.",
-        "base_intereses": "❌ La base de intereses no puede estar vacía.",
-        "fecha_negociacion": "❌ La fecha de negociación no puede estar vacía.",
-        "tasa_mercado": "❌ La tasa de mercado no puede estar vacía.",
-        "valor_nominal_base": "❌ El valor nominal base no puede estar vacío.",
-    }
-
-    # Verificación automática de campos vacíos
-    for field, error_message in required_fields.items():
-        if not locals()[field]:  # Obtiene el valor de la variable por su nombre
-            errors[field] = error_message
-
-    # Validación de fechas
-    if fecha_emision and fecha_vencimiento and fecha_emision >= fecha_vencimiento:
-        errors["fecha_emision"] = (
-            "❌ La fecha de emisión debe ser menor a la fecha de vencimiento."
-        )
-
-    if fecha_negociacion and fecha_emision and fecha_vencimiento:
-        if not (fecha_emision < fecha_negociacion < fecha_vencimiento):
-            errors["fecha_negociacion"] = (
-                "❌ La fecha de negociación debe ser mayor a la fecha de emisión y menor a la fecha de vencimiento."
-            )
-
-    return errors
+from utils.validation import validate_inputs
+from data_handling.tasa_fija_data import generar_cashflows_df_tf
+from data_handling.shared_data import cupon_corrido_calc
 
 
 # start from here
-st.title("Calculadora Renta Fija")
+st.title("Calculadora Tasa Fija")
 st.divider()
 main_header_col1, main_header_col2 = st.columns(2)
 with main_header_col1:
@@ -157,19 +105,21 @@ with main_header_col2:
         col_results1, col_results2, col_results3 = st.columns(3)
         with col_results1:
             precio_sucio_placeholder = st.empty()
-            valor_giro_placeholder = st.empty()
+            precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
+            valor_nominal_placeholder = st.empty()
+            valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
+
         with col_results2:
             cupon_corrido_placeholder = st.empty()
+            cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
+            valor_giro_placeholder = st.empty()
+            valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
         with col_results3:
             precio_limpio_placeholder = st.empty()
+            precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
             precio_limpio_placeholder_venta = st.empty()
 
-# 🔹 Initial default metric values
-precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
-valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
-cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
-precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
-
+# Container for detailed table
 st.header("Tabla detallada")
 
 if submitted:
@@ -203,7 +153,7 @@ if submitted:
 
     else:
 
-        df = generar_cashflows_df(
+        df = generar_cashflows_df_tf(
             fecha_emision=fecha_emision,
             fecha_vencimiento=fecha_vencimiento,
             fecha_negociacion=fecha_negociacion,
@@ -238,10 +188,13 @@ if submitted:
             label="**Precio Sucio**", value=f"{precio_sucio:.3f}%"
         )
         valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
+        valor_nominal_placeholder.write(f"**Valor Nominal: ${valor_nominal:,.2f}**")
         cupon_corrido_placeholder.metric(
             label="**Cupón Corrido**", value=f"{cupon_corrido:.3f}%"
         )
         precio_limpio_placeholder.metric(
             label="**Precio Limpio**", value=f"{precio_limpio:.3f}%"
         )
-        precio_limpio_placeholder_venta.markdown(precio_limpio_venta.replace("\n", "  \n"))
+        precio_limpio_placeholder_venta.markdown(
+            precio_limpio_venta.replace("\n", "  \n")
+        )

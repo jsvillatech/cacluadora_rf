@@ -42,31 +42,35 @@ def generar_fechas(
                 )
 
         elif modalidad == "30/360":
-            # Usar días fijos (30 días por mes, 90 por trimestre, etc.)
+            # Ajuste según la convención 30/360
+            dia = min(30, fecha_actual.day)  # Si el día es 31, lo ajustamos a 30
             if periodicidad == "Mensual":
-                fecha_actual += timedelta(days=30)
+                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=1)
             elif periodicidad == "Trimestral":
-                fecha_actual += timedelta(days=90)
+                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=3)
             elif periodicidad == "Semestral":
-                fecha_actual += timedelta(days=180)
+                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=6)
             elif periodicidad == "Anual":
-                fecha_actual += timedelta(days=360)
+                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(years=1)
             else:
                 raise ValueError(
                     "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
                 )
+
         else:
             raise ValueError("Modalidad no válida. Usa '30/360' o '365/365' días.")
 
     return lista_fechas
 
 
-def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str]):
+def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str], modalidad: str):
     """
-    Calcula la diferencia en días entre fechas consecutivas de una lista de fechas (Pago Cupon).
+    Calcula la diferencia en días entre fechas consecutivas de una lista de fechas (Pago Cupon)
+    usando la convención 30/360 o 365/365.
 
     Args:
         lista_fechas (list[str]): Lista de fechas en formato 'DD/MM/YYYY'.
+        modalidad (str): Modalidad del cálculo ('30/360' o '365/365').
 
     Returns:
         list[int]: Lista de diferencias en días entre fechas consecutivas.
@@ -74,15 +78,41 @@ def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str]):
     if len(lista_fechas) < 2:
         return []
 
-    # Convertir a Pandas Series con tipo datetime
-    fechas = pd.Series(pd.to_datetime(lista_fechas, format="%d/%m/%Y"))
+    # Convertimos la lista de fechas a objetos datetime
+    fechas = [pd.to_datetime(fecha, format="%d/%m/%Y") for fecha in lista_fechas]
 
-    # Calcular diferencias usando diff()
-    diferencias = fechas.diff().dt.days.dropna().astype(int)
-    diferencias_list = diferencias.tolist()
-    diferencias_list.insert(
-        0, 0
-    )  # Se agrega un 0 al inicio de la lista para que coincida con la cantidad de cupones
+    diferencias_list = [
+        0
+    ]  # Se agrega un 0 al inicio para coincidir con la cantidad de cupones
+
+    for i in range(1, len(fechas)):
+        fecha_anterior = fechas[i - 1]
+        fecha_actual = fechas[i]
+
+        if modalidad == "365/365":
+            # Cálculo exacto de diferencia real en días
+            diferencia = (fecha_actual - fecha_anterior).days
+
+        elif modalidad == "30/360":
+            # Extraemos año, mes y día y ajustamos a la convención 30/360
+            Y1, M1, D1 = (
+                fecha_anterior.year,
+                fecha_anterior.month,
+                min(30, fecha_anterior.day),
+            )
+            Y2, M2, D2 = (
+                fecha_actual.year,
+                fecha_actual.month,
+                min(30, fecha_actual.day),
+            )
+
+            # Aplicamos la fórmula 30/360
+            diferencia = (Y2 - Y1) * 360 + (M2 - M1) * 30 + (D2 - D1)
+
+        else:
+            raise ValueError("Modalidad no válida. Usa '30/360' o '365/365'.")
+
+        diferencias_list.append(diferencia)
 
     return diferencias_list
 
@@ -104,7 +134,7 @@ def calcular_numero_dias_descuento_cupon(
     fecha_negociacion_dt = datetime.combine(fecha_negociacion, datetime.min.time())
     # Calcular diferencias
     diferencias = [
-        (datetime.strptime(fecha, "%d/%m/%Y") - fecha_negociacion_dt).days
+        max(0, (datetime.strptime(fecha, "%d/%m/%Y") - fecha_negociacion_dt).days)
         for fecha in lista_fechas_pago_cupon
     ]
     diferencias[0] = (
@@ -112,62 +142,6 @@ def calcular_numero_dias_descuento_cupon(
     )
 
     return diferencias
-
-
-def convertir_tasa_cupon(
-    base_dias_anio: str,
-    modalidad_tasa: str,
-    periodicidad: str,
-    tasa_anual_cupon: float,
-    dias_pago_entre_cupon: list[int],
-):
-    """
-    Convierte una tasa efectiva anual (EA) o nominal anual a una tasa efectiva o nominal en otra periodicidad.
-
-    Parámetros:
-    base_dias_anio (str): Base de cálculo de días ('30/360' o '365/365').
-    modalidad_tasa (str): Modalidad de la tasa ('EA' o 'Nominal').
-    periodicidad (str): Periodo de conversión ('Mensual', 'Trimestral', 'Semestral', 'Anual').
-    tasa_anual_cupon (float): Tasa anual expresada en decimal (Ej: 10% -> 0.10).
-    dias_pago_entre_cupon (list[int]): Lista de número de días transcurridos de pago entre cupones.
-
-    Retorna:
-    list[float]: Tasa convertida a la periodicidad especificada.
-    """
-    tasa_anual_cupon = tasa_anual_cupon / 100
-
-    base = {"30/360": 360, "365/365": 365}
-
-    periodos_por_anio = {"Mensual": 12, "Trimestral": 4, "Semestral": 2, "Anual": 1}
-
-    if not dias_pago_entre_cupon:
-        raise ValueError("La lista de días de pago entre cupones está vacía.")
-
-    if periodicidad not in periodos_por_anio:
-        raise ValueError(
-            "Periodicidad no válida. Usa: 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
-        )
-
-    if base_dias_anio not in base:
-        raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
-
-    if modalidad_tasa == "EA":
-        tasas = [
-            pow(1 + tasa_anual_cupon, dias / base[base_dias_anio]) - 1
-            for dias in dias_pago_entre_cupon
-        ]
-        return tasas
-
-    elif modalidad_tasa == "Nominal":
-        tasas = [
-            tasa_anual_cupon / periodos_por_anio[periodicidad]
-            for _ in dias_pago_entre_cupon
-        ]
-        tasas[0] = 0  # se reemplaza 0 porque es el valor de la tasa en el primer cupón
-        return tasas
-
-    else:
-        raise ValueError("Modalidad de tasa no válida. Usa 'EA' o 'Nominal'.")
 
 
 def calcular_cupones_futuros_cf(
@@ -193,7 +167,6 @@ def calcular_cupones_futuros_cf(
 def calcular_vp_cfs(
     lista_cfs: list[float],
     tasa_mercado: float,
-    base_anio: str,
     lista_dias_descuento: list[int],
 ):
     """
@@ -202,7 +175,6 @@ def calcular_vp_cfs(
     Parámetros:
     - lista_cfs (list[float]): Lista de flujos de caja futuros.
     - tasa_mercado (float): Tasa efectiva anual en decimal.
-    - base_anio (str): '30/360' o '365/365'.
     - lista_dias_descuento (list[int]): Lista de días de descuento para cada flujo de caja.
 
     Retorna:
@@ -211,16 +183,9 @@ def calcular_vp_cfs(
 
     tasa_mercado = tasa_mercado / 100
 
-    base = {
-        "30/360": 360,
-        "365/365": 365,
-    }
-
-    if base_anio not in base:
-        raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
-
     vp_cfs = [
-        CFt / pow(1 + tasa_mercado, dias / base[base_anio])
+        CFt
+        / pow(1 + tasa_mercado, dias / 365)  # siempre por 365 ya sea 365/365 o 30/360
         for CFt, dias in zip(lista_cfs, lista_dias_descuento)
     ]
 
