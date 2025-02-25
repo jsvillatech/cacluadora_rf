@@ -73,6 +73,9 @@ def leer_datos_excel(archivo_subido, nombre_hoja: str):
 
     try:
         df = pd.read_excel(archivo_subido, sheet_name=nombre_hoja)
+        df.columns = (
+            df.columns.str.strip()
+        )  # Eliminar espacios en los nombres de las columnas
     except ValueError:
         raise ValueError(
             f"❌ La hoja '{nombre_hoja}' no se encontró en el archivo Excel."
@@ -97,3 +100,26 @@ def leer_datos_excel(archivo_subido, nombre_hoja: str):
         )
 
     return df  # ✅ Retorna el DataFrame con las columnas originales
+
+
+def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
+    """
+    Filtra un DataFrame cargado desde un archivo por una lista de fechas.
+
+    Parámetros:
+    - archivo: Archivo Excel a leer.
+    - fechas_filtro: Lista de fechas de tipo datetime.date a buscar.
+    - nombre_hoja: Nombre de la hoja de Excel que se desea
+
+    Retorna:
+    - Un DataFrame filtrado con las fechas especificadas o vacío si no hay coincidencias.
+    """
+    df = leer_datos_excel(archivo, nombre_hoja)  # Cargar los datos desde el archivo
+
+    # Convertir la columna "Fecha" a datetime.date
+    df["Fecha"] = pd.to_datetime(df["Fecha"]).dt.date
+
+    # Filtrar por la lista de fechas usando isin()
+    df_filtrado = df[df["Fecha"].isin(fechas_filtro)]
+
+    return df_filtrado

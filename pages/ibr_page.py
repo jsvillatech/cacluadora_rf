@@ -2,7 +2,7 @@ import streamlit as st
 from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.tasa_fija_data import generar_cashflows_df_tf
+from data_handling.ibr_data import generar_cashflows_df_ibr
 from data_handling.shared_data import cupon_corrido_calc
 
 # Initialize session state if not already set
@@ -15,6 +15,7 @@ if "uploaded_file" not in st.session_state:
 # Function to toggle the file uploader state
 def toggle_uploader():
     st.session_state.disable_uploader = st.session_state.radio_option == "Online"
+    st.session_state.uploaded_file = None
 
 
 # Function to store the uploaded file persistently
@@ -31,7 +32,7 @@ upload_col1, upload_col2 = st.columns(2)
 with upload_col1:
     # Radio button to enable/disable file uploader (Outside Form)
     st.radio(
-        "**Usar los datos online o subir un archivo excel?**",
+        "**Usar los datos online o subir el archivo excel de Proyecciones?**",
         ("Online", "Excel"),
         key="radio_option",
         on_change=toggle_uploader,
@@ -153,8 +154,6 @@ st.header("Tabla detallada")
 if submitted:
     # Retrieve file from session state
     uploaded_file = st.session_state.uploaded_file
-    if uploaded_file:
-        st.success(f"File '{uploaded_file.name}' included in calculation!")
 
     # Validate form inputs
     errors = validate_inputs(
@@ -185,17 +184,22 @@ if submitted:
         display_errors(errors, error_placeholders)
 
     else:
-        df = generar_cashflows_df_tf(
+        if uploaded_file:
+            st.success(f"File '{uploaded_file.name}' included in calculation!")
+        else:
+            st.success("Datos de BanRep utilizados en el cálculo.")
+
+        df = generar_cashflows_df_ibr(
             fecha_emision=fecha_emision,
             fecha_vencimiento=fecha_vencimiento,
             fecha_negociacion=fecha_negociacion,
             periodo_cupon=periodo_cupon,
             base_intereses=base_intereses,
-            modalidad_tasa_cupon=modalidad_tasa_cupon,
             tasa_cupon=tasa_cupon,
             valor_nominal_base=valor_nominal_base,
             tasa_mercado=tasa_mercado,
             valor_nominal=valor_nominal,
+            archivo_subido=uploaded_file,
         )
 
         st.dataframe(df, use_container_width=True, height=500)

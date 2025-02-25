@@ -38,7 +38,7 @@ def validate_inputs(
         )
 
     if fecha_negociacion and fecha_emision and fecha_vencimiento:
-        if not (fecha_emision < fecha_negociacion < fecha_vencimiento):
+        if not (fecha_emision <= fecha_negociacion <= fecha_vencimiento):
             errors["fecha_negociacion"] = (
                 "❌ La fecha de negociación debe ser mayor a la fecha de emisión y menor a la fecha de vencimiento."
             )
