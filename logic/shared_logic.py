@@ -167,7 +167,6 @@ def calcular_cupones_futuros_cf(
 def calcular_vp_cfs(
     lista_cfs: list[float],
     tasa_mercado: float,
-    base_anio: str,
     lista_dias_descuento: list[int],
 ):
     """
@@ -176,7 +175,6 @@ def calcular_vp_cfs(
     Parámetros:
     - lista_cfs (list[float]): Lista de flujos de caja futuros.
     - tasa_mercado (float): Tasa efectiva anual en decimal.
-    - base_anio (str): '30/360' o '365/365'.
     - lista_dias_descuento (list[int]): Lista de días de descuento para cada flujo de caja.
 
     Retorna:
@@ -185,16 +183,9 @@ def calcular_vp_cfs(
 
     tasa_mercado = tasa_mercado / 100
 
-    base = {
-        "30/360": 360,
-        "365/365": 365,
-    }
-
-    if base_anio not in base:
-        raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
-
     vp_cfs = [
-        CFt / pow(1 + tasa_mercado, dias / base[base_anio])
+        CFt
+        / pow(1 + tasa_mercado, dias / 365)  # siempre por 365 ya sea 365/365 o 30/360
         for CFt, dias in zip(lista_cfs, lista_dias_descuento)
     ]
 

@@ -52,7 +52,6 @@ def generar_cashflows_df_ibr(
     vp_cfs = calcular_vp_cfs(
         lista_cfs=cf_t,
         tasa_mercado=tasa_mercado,
-        base_anio=base_intereses,
         lista_dias_descuento=dias_descuento_cupon,
     )
     flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)

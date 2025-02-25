@@ -106,11 +106,14 @@ with main_header_col2:
         with col_results1:
             precio_sucio_placeholder = st.empty()
             precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
-            valor_giro_placeholder = st.empty()
-            valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
+            valor_nominal_placeholder = st.empty()
+            valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
+
         with col_results2:
             cupon_corrido_placeholder = st.empty()
             cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
+            valor_giro_placeholder = st.empty()
+            valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
         with col_results3:
             precio_limpio_placeholder = st.empty()
             precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
@@ -185,6 +188,7 @@ if submitted:
             label="**Precio Sucio**", value=f"{precio_sucio:.3f}%"
         )
         valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
+        valor_nominal_placeholder.write(f"**Valor Nominal: ${valor_nominal:,.2f}**")
         cupon_corrido_placeholder.metric(
             label="**Cupón Corrido**", value=f"{cupon_corrido:.3f}%"
         )

@@ -61,6 +61,7 @@ with main_header_col1:
                 min_value=0.0,
                 value=0.0,
                 step=0.01,
+                format="%.2f",
             )
             valor_nominal_error = st.empty()
             fecha_emision = st.date_input(
@@ -81,11 +82,12 @@ with main_header_col1:
 
         with header_form_col2:
             tasa_cupon = st.number_input(
-                "**Tasa de cupón IBR +**",
+                "**Tasa de cupón (Spread)**",
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
+                format="%0.3f",
             )
             tasa_cupon_error = st.empty()
             base_intereses = st.selectbox(
@@ -105,6 +107,7 @@ with main_header_col1:
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
+                format="%0.3f",
             )
             tasa_mercado_error = st.empty()
 
@@ -122,6 +125,7 @@ with main_header_col1:
                 max_value=1000000.0,
                 value=100.00,
                 step=0.01,
+                format="%0.2f",
             )
             valor_nominal_base_error = st.empty()
 
@@ -138,11 +142,15 @@ with main_header_col2:
         with col_results1:
             precio_sucio_placeholder = st.empty()
             precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
-            valor_giro_placeholder = st.empty()
-            valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
+            valor_nominal_placeholder = st.empty()
+            valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
+
         with col_results2:
             cupon_corrido_placeholder = st.empty()
             cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
+            valor_giro_placeholder = st.empty()
+            valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
+
         with col_results3:
             precio_limpio_placeholder = st.empty()
             precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
@@ -201,8 +209,16 @@ if submitted:
             valor_nominal=valor_nominal,
             archivo_subido=uploaded_file,
         )
-
-        st.dataframe(df, use_container_width=True, height=500)
+        # show df
+        config = {
+            "CFt": st.column_config.NumberColumn(
+                "CFt", format="%.3f%%", help="Cupón Futuro"
+            ),
+            "VP CF": st.column_config.NumberColumn(
+                "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
+            ),
+        }
+        st.dataframe(df, use_container_width=True, height=500, column_config=config)
 
         # Calculate new metric values
         precio_sucio = df["VP CF"].sum()
@@ -214,6 +230,7 @@ if submitted:
         # Update metrics dynamically
         precio_sucio_placeholder.metric("**Precio Sucio**", f"{precio_sucio:.3f}%")
         valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
+        valor_nominal_placeholder.write(f"**Valor Nominal: ${valor_nominal:,.2f}**")
         cupon_corrido_placeholder.metric("**Cupón Corrido**", f"{cupon_corrido:.3f}%")
         precio_limpio_placeholder.metric("**Precio Limpio**", f"{precio_limpio:.3f}%")
         precio_limpio_placeholder_venta.markdown(
