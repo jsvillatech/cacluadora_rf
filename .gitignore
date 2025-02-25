@@ -9,7 +9,6 @@ venv/
 # Dependencies
 Pipfile
 Pipfile.lock
-requirements.txt
 
 # OS-specific
 .DS_Store

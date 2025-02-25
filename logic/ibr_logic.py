@@ -1,6 +1,9 @@
 import requests
 import datetime
 import pandas as pd
+import holidays
+
+co_holidays = holidays.Colombia()  # Festivos en Colombia
 
 
 def fetch_ibr_data_banrep(fecha_inicio: datetime.date, fecha_fin: datetime.date):
@@ -48,3 +51,154 @@ def fetch_ibr_data_banrep(fecha_inicio: datetime.date, fecha_fin: datetime.date)
         return df
     except requests.RequestException:
         raise Exception("Sorry, something went wrong, try again later")
+
+
+def convertir_tasa_cupon_ibr(
+    base_dias_anio: str,
+    modalidad_tasa: str,
+    periodicidad: str,
+    tasa_anual_cupon: float,
+    dias_pago_entre_cupon: list[int],
+    fecha_inicio: datetime.date,
+    fecha_fin: datetime.date,
+    archivo=None,
+):
+    """
+    Convierte una tasa efectiva anual (EA) o nominal anual a una tasa efectiva o nominal en otra periodicidad.
+
+    Parámetros:
+    base_dias_anio (str): Base de cálculo de días ('30/360' o '365/365').
+    modalidad_tasa (str): Modalidad de la tasa ('EA' o 'Nominal').
+    periodicidad (str): Periodo de conversión ('Mensual', 'Trimestral', 'Semestral', 'Anual').
+    tasa_anual_cupon (float): Tasa anual expresada en decimal (Ej: 10% -> 0.10).
+    dias_pago_entre_cupon (list[int]): Lista de número de días transcurridos de pago entre cupones.
+
+    Retorna:
+    list[float]: Tasa convertida a la periodicidad especificada.
+    """
+    tasa_anual_cupon = tasa_anual_cupon / 100
+
+    base = {"30/360": 360, "365/365": 365}
+
+    periodos_por_anio = {"Mensual": 12, "Trimestral": 4, "Semestral": 2, "Anual": 1}
+
+    if not dias_pago_entre_cupon:
+        raise ValueError("La lista de días de pago entre cupones está vacía.")
+
+    if periodicidad not in periodos_por_anio:
+        raise ValueError(
+            "Periodicidad no válida. Usa: 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+        )
+
+    if base_dias_anio not in base:
+        raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
+
+    # Obtener datos del IBR
+    if archivo is None:
+        tasas = [
+            tasa_anual_cupon / periodos_por_anio[periodicidad]
+            for _ in dias_pago_entre_cupon
+        ]
+    tasas[0] = 0  # se reemplaza 0 porque es el valor de la tasa en el primer cupón
+
+    return tasas
+
+
+def es_dia_habil_bancario(fecha: datetime.date) -> bool:
+    """Determina si 'fecha' es un día hábil bancario en Colombia."""
+    # weekday(): Monday=0, Sunday=6
+    if fecha.weekday() in (5, 6):  # Sábados (5) y Domingos (6) no son hábiles
+        return False
+    # Festivos según el calendario de Colombia
+    if fecha in co_holidays:
+        return False
+    return True
+
+
+def dia_habil_anterior(fecha: datetime.date) -> datetime.date:
+    """
+    Retorna el día hábil bancario anterior a 'fecha'.
+    Iteramos hacia atrás (día a día) hasta encontrar un día hábil.
+    """
+    un_dia = datetime.timedelta(days=1)
+    fecha_anterior = fecha - un_dia
+    while not es_dia_habil_bancario(fecha_anterior):
+        fecha_anterior -= un_dia
+    return fecha_anterior
+
+
+def jueves_anterior(fecha: datetime.date) -> datetime.date:
+    """
+    Retorna el jueves anterior (o la misma fecha si ya es jueves).
+    """
+    fecha_aux = fecha
+    while fecha_aux.weekday() != 3:  # 3 = Jueves
+        fecha_aux -= datetime.timedelta(days=1)
+    return fecha_aux
+
+
+def viernes_anterior(fecha: datetime.date) -> datetime.date:
+    """
+    Retorna el viernes anterior (o el mismo viernes si 'fecha' fuera viernes).
+    """
+    fecha_aux = fecha
+    while fecha_aux.weekday() != 4:  # 4 = Viernes
+        fecha_aux -= datetime.timedelta(days=1)
+    return fecha_aux
+
+
+def fecha_publicacion_ibr(fecha_objetivo: datetime.date) -> datetime.date:
+    """
+    Dada una fecha 'fecha_objetivo', determina la fecha de publicación del IBR
+    según las reglas:
+
+    1) El IBR publicado el viernes (11:00 a.m.) rige para el lunes siguiente.
+       - Si el lunes NO es día hábil bancario, ese IBR del viernes rige para el martes.
+
+    2) Durante un fin de semana habitual (viernes, sábado, domingo),
+       se usa la tasa publicada el jueves anterior (11:00 a.m.).
+
+    3) Si el lunes es festivo, se usa la tasa publicada el jueves anterior.
+
+    4) Para martes, miércoles y jueves “normales” (sin ser festivos intercalados),
+       se asume que se usa la tasa publicada el día hábil anterior.
+    """
+    dia_semana = fecha_objetivo.weekday()  # Lunes=0, Martes=1, ..., Domingo=6
+
+    # ---------------------------
+    # CASO: Viernes, Sábado, Domingo
+    # => Tasa del jueves anterior
+    # ---------------------------
+    if dia_semana in (4, 5, 6):
+        return jueves_anterior(fecha_objetivo)
+
+    # ---------------------------
+    # CASO: Lunes
+    # ---------------------------
+    if dia_semana == 0:
+        # ¿Es día hábil o festivo?
+        if not es_dia_habil_bancario(fecha_objetivo):
+            # Lunes festivo => jueves anterior
+            return jueves_anterior(fecha_objetivo)
+        else:
+            # Lunes hábil => viernes anterior
+            return viernes_anterior(fecha_objetivo)
+
+    # ---------------------------
+    # CASO: Martes
+    # ---------------------------
+    if dia_semana == 1:
+        # Revisamos si el lunes anterior fue festivo
+        fecha_lunes = fecha_objetivo - datetime.timedelta(days=1)
+        if not es_dia_habil_bancario(fecha_lunes):
+            # Si el lunes no fue hábil => tasa del viernes anterior
+            return viernes_anterior(fecha_objetivo)
+        else:
+            # Si fue hábil => tasa del día hábil anterior (lunes)
+            return dia_habil_anterior(fecha_objetivo)
+
+    # ---------------------------
+    # CASO: Miércoles o Jueves
+    # => Tasa del día hábil anterior
+    # ---------------------------
+    return dia_habil_anterior(fecha_objetivo)
