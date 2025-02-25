@@ -31,7 +31,7 @@ upload_col1, upload_col2 = st.columns(2)
 
 with upload_col1:
     # Radio button to enable/disable file uploader (Outside Form)
-    st.radio(
+    radio_data = st.radio(
         "**Usar los datos online o subir el archivo excel de Proyecciones?**",
         ("Online", "Excel"),
         key="radio_option",
@@ -162,87 +162,95 @@ st.header("Tabla detallada")
 if submitted:
     # Retrieve file from session state
     uploaded_file = st.session_state.uploaded_file
-
-    # Validate form inputs
-    errors = validate_inputs(
-        valor_nominal,
-        fecha_emision,
-        fecha_vencimiento,
-        periodo_cupon,
-        tasa_cupon,
-        base_intereses,
-        fecha_negociacion,
-        tasa_mercado,
-        valor_nominal_base,
-    )
-
-    error_placeholders = {
-        "valor_nominal": valor_nominal_error,
-        "fecha_emision": fecha_emision_error,
-        "fecha_vencimiento": fecha_vencimiento_error,
-        "periodo_cupon": periodo_cupon_error,
-        "tasa_cupon": tasa_cupon_error,
-        "base_intereses": base_intereses_error,
-        "fecha_negociacion": fecha_negociacion_error,
-        "tasa_mercado": tasa_mercado_error,
-        "valor_nominal_base": valor_nominal_base_error,
-    }
-
-    if errors:
-        display_errors(errors, error_placeholders)
-
+    if radio_data == "Excel" and uploaded_file is None:
+        st.error("Por favor sube el archivo de proyecciones.")
     else:
-        if uploaded_file:
-            st.success(f"File '{uploaded_file.name}' included in calculation!")
-        else:
-            st.success("Datos de BanRep utilizados en el cálculo.")
-
-        df_errors_placeholder = st.empty()
-        df = generar_cashflows_df_ibr(
-            fecha_emision=fecha_emision,
-            fecha_vencimiento=fecha_vencimiento,
-            fecha_negociacion=fecha_negociacion,
-            periodo_cupon=periodo_cupon,
-            base_intereses=base_intereses,
-            tasa_cupon=tasa_cupon,
-            valor_nominal_base=valor_nominal_base,
-            tasa_mercado=tasa_mercado,
-            valor_nominal=valor_nominal,
-            archivo_subido=uploaded_file,
+        # Validate form inputs
+        errors = validate_inputs(
+            valor_nominal,
+            fecha_emision,
+            fecha_vencimiento,
+            periodo_cupon,
+            tasa_cupon,
+            base_intereses,
+            fecha_negociacion,
+            tasa_mercado,
+            valor_nominal_base,
         )
-        if isinstance(df, dict) and "error" in df:
-            df_errors_placeholder.error(df["error"])
+
+        error_placeholders = {
+            "valor_nominal": valor_nominal_error,
+            "fecha_emision": fecha_emision_error,
+            "fecha_vencimiento": fecha_vencimiento_error,
+            "periodo_cupon": periodo_cupon_error,
+            "tasa_cupon": tasa_cupon_error,
+            "base_intereses": base_intereses_error,
+            "fecha_negociacion": fecha_negociacion_error,
+            "tasa_mercado": tasa_mercado_error,
+            "valor_nominal_base": valor_nominal_base_error,
+        }
+
+        if errors:
+            display_errors(errors, error_placeholders)
+
         else:
-            # show df
-            config = {
-                "CFt": st.column_config.NumberColumn(
-                    "CFt", format="%.3f%%", help="Cupón Futuro"
-                ),
-                "VP CF": st.column_config.NumberColumn(
-                    "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
-                ),
-            }
-            st.dataframe(df, use_container_width=True, height=500, column_config=config)
+            if uploaded_file:
+                st.success(f"File '{uploaded_file.name}' included in calculation!")
+            else:
+                st.success("Datos de BanRep utilizados en el cálculo.")
 
-            # Calculate new metric values
-            precio_sucio = df["VP CF"].sum()
-            valor_giro = (precio_sucio / 100) * valor_nominal
-            cupon_corrido = cupon_corrido_calc(
-                df=df, date_negociacion=fecha_negociacion
+            df_errors_placeholder = st.empty()
+            df = generar_cashflows_df_ibr(
+                fecha_emision=fecha_emision,
+                fecha_vencimiento=fecha_vencimiento,
+                fecha_negociacion=fecha_negociacion,
+                periodo_cupon=periodo_cupon,
+                base_intereses=base_intereses,
+                tasa_cupon=tasa_cupon,
+                valor_nominal_base=valor_nominal_base,
+                tasa_mercado=tasa_mercado,
+                valor_nominal=valor_nominal,
+                archivo_subido=uploaded_file,
             )
-            precio_limpio = precio_sucio - cupon_corrido
-            precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
+            if isinstance(df, dict) and "error" in df:
+                df_errors_placeholder.error(df["error"])
+            else:
+                # show df
+                config = {
+                    "CFt": st.column_config.NumberColumn(
+                        "CFt", format="%.3f%%", help="Cupón Futuro"
+                    ),
+                    "VP CF": st.column_config.NumberColumn(
+                        "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
+                    ),
+                }
+                st.dataframe(
+                    df, use_container_width=True, height=500, column_config=config
+                )
 
-            # Update metrics dynamically
-            precio_sucio_placeholder.metric("**Precio Sucio**", f"{precio_sucio:.3f}%")
-            valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
-            valor_nominal_placeholder.write(f"**Valor Nominal: ${valor_nominal:,.2f}**")
-            cupon_corrido_placeholder.metric(
-                "**Cupón Corrido**", f"{cupon_corrido:.3f}%"
-            )
-            precio_limpio_placeholder.metric(
-                "**Precio Limpio**", f"{precio_limpio:.3f}%"
-            )
-            precio_limpio_placeholder_venta.markdown(
-                precio_limpio_venta.replace("\n", "  \n")
-            )
+                # Calculate new metric values
+                precio_sucio = df["VP CF"].sum()
+                valor_giro = (precio_sucio / 100) * valor_nominal
+                cupon_corrido = cupon_corrido_calc(
+                    df=df, date_negociacion=fecha_negociacion
+                )
+                precio_limpio = precio_sucio - cupon_corrido
+                precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
+
+                # Update metrics dynamically
+                precio_sucio_placeholder.metric(
+                    "**Precio Sucio**", f"{precio_sucio:.3f}%"
+                )
+                valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
+                valor_nominal_placeholder.write(
+                    f"**Valor Nominal: ${valor_nominal:,.2f}**"
+                )
+                cupon_corrido_placeholder.metric(
+                    "**Cupón Corrido**", f"{cupon_corrido:.3f}%"
+                )
+                precio_limpio_placeholder.metric(
+                    "**Precio Limpio**", f"{precio_limpio:.3f}%"
+                )
+                precio_limpio_placeholder_venta.markdown(
+                    precio_limpio_venta.replace("\n", "  \n")
+                )
