@@ -2,7 +2,7 @@ import streamlit as st
 from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.tasa_fija_data import generar_cashflows_df
+from data_handling.tasa_fija_data import generar_cashflows_df_tf
 from data_handling.shared_data import cupon_corrido_calc
 
 
@@ -150,7 +150,7 @@ if submitted:
 
     else:
 
-        df = generar_cashflows_df(
+        df = generar_cashflows_df_tf(
             fecha_emision=fecha_emision,
             fecha_vencimiento=fecha_vencimiento,
             fecha_negociacion=fecha_negociacion,

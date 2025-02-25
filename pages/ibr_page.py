@@ -2,18 +2,54 @@ import streamlit as st
 from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.tasa_fija_data import (
-    generar_cashflows_df,
-    cupon_corrido_calc,
-)
+from data_handling.tasa_fija_data import generar_cashflows_df
+from data_handling.shared_data import cupon_corrido_calc
+
+# Initialize session state if not already set
+if "disable_uploader" not in st.session_state:
+    st.session_state.disable_uploader = True
+if "uploaded_file" not in st.session_state:
+    st.session_state.uploaded_file = None  # Store the uploaded file persistently
 
 
-# start from here
+# Function to toggle the file uploader state
+def toggle_uploader():
+    st.session_state.disable_uploader = st.session_state.radio_option == "Online"
+
+
+# Function to store the uploaded file persistently
+def store_file():
+    st.session_state.uploaded_file = st.session_state.file_uploader_key
+
+
+# Title
 st.title("Calculadora IBR")
 st.divider()
+
+upload_col1, upload_col2 = st.columns(2)
+
+with upload_col1:
+    # Radio button to enable/disable file uploader (Outside Form)
+    st.radio(
+        "**Usar los datos online o subir un archivo excel?**",
+        ("Online", "Excel"),
+        key="radio_option",
+        on_change=toggle_uploader,
+        index=0,
+    )
+with upload_col2:
+    # File uploader (Outside Form) but stores in session state
+    file = st.file_uploader(
+        "Selecciona el excel con los datos de IBR",
+        disabled=st.session_state.disable_uploader,
+        key="file_uploader_key",
+        on_change=store_file,
+        type=["xlsx"],
+    )
+
+# Main form
 main_header_col1, main_header_col2 = st.columns(2)
 with main_header_col1:
-
     with st.form("bond_form"):
         st.subheader("**Condiciones Faciales**")
         header_form_col1, header_form_col2, header_form_col3 = st.columns(3)
@@ -36,14 +72,7 @@ with main_header_col1:
             fecha_vencimiento_error = st.empty()
             periodo_cupon = st.selectbox(
                 label="**Periodo Pago Cupón**",
-                options=(
-                    "Anual",
-                    "Semestral",
-                    "Trimestral",
-                    "Mensual",
-                    # "Cero Cupón",
-                    # "Periodo Vencido",
-                ),
+                options=("Anual", "Semestral", "Trimestral", "Mensual"),
                 index=None,
                 placeholder="Seleccionar",
             )
@@ -77,6 +106,7 @@ with main_header_col1:
                 step=0.01,
             )
             tasa_mercado_error = st.empty()
+
         with header_form_col3:
             modalidad_tasa_cupon = st.radio(
                 "**Modalidad Tasa Cupón**",
@@ -95,9 +125,7 @@ with main_header_col1:
             valor_nominal_base_error = st.empty()
 
         # Create three columns and place the button in the middle column
-        col_left, col_center, col_right = st.columns(
-            [2, 1, 2]
-        )  # Adjust ratios as needed
+        col_left, col_center, col_right = st.columns([2, 1, 2])
         with col_center:
             submitted = st.form_submit_button("Calcular")
 
@@ -123,6 +151,11 @@ with main_header_col2:
 st.header("Tabla detallada")
 
 if submitted:
+    # Retrieve file from session state
+    uploaded_file = st.session_state.uploaded_file
+    if uploaded_file:
+        st.success(f"File '{uploaded_file.name}' included in calculation!")
+
     # Validate form inputs
     errors = validate_inputs(
         valor_nominal,
@@ -152,7 +185,6 @@ if submitted:
         display_errors(errors, error_placeholders)
 
     else:
-
         df = generar_cashflows_df(
             fecha_emision=fecha_emision,
             fecha_vencimiento=fecha_vencimiento,
@@ -165,35 +197,21 @@ if submitted:
             tasa_mercado=tasa_mercado,
             valor_nominal=valor_nominal,
         )
-        # show df
-        config = {
-            "CFt": st.column_config.NumberColumn(
-                "CFt", format="%.3f%%", help="Cupón Futuro"
-            ),
-            "VP CF": st.column_config.NumberColumn(
-                "VP CF", format="%.3f%%", help="Valor Presente del Cupón"
-            ),
-        }
-        st.dataframe(df, column_config=config, use_container_width=True, height=500)
 
-        # 🔹 Calculate new metric values
+        st.dataframe(df, use_container_width=True, height=500)
+
+        # Calculate new metric values
         precio_sucio = df["VP CF"].sum()
         valor_giro = (precio_sucio / 100) * valor_nominal
         cupon_corrido = cupon_corrido_calc(df=df, date_negociacion=fecha_negociacion)
         precio_limpio = precio_sucio - cupon_corrido
         precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
 
-        # 🔹 Update metrics dynamically using `st.empty()`
-        precio_sucio_placeholder.metric(
-            label="**Precio Sucio**", value=f"{precio_sucio:.3f}%"
-        )
+        # Update metrics dynamically
+        precio_sucio_placeholder.metric("**Precio Sucio**", f"{precio_sucio:.3f}%")
         valor_giro_placeholder.write(f"**Valor de Giro: ${valor_giro:,.2f}**")
-        cupon_corrido_placeholder.metric(
-            label="**Cupón Corrido**", value=f"{cupon_corrido:.3f}%"
-        )
-        precio_limpio_placeholder.metric(
-            label="**Precio Limpio**", value=f"{precio_limpio:.3f}%"
-        )
+        cupon_corrido_placeholder.metric("**Cupón Corrido**", f"{cupon_corrido:.3f}%")
+        precio_limpio_placeholder.metric("**Precio Limpio**", f"{precio_limpio:.3f}%")
         precio_limpio_placeholder_venta.markdown(
             precio_limpio_venta.replace("\n", "  \n")
         )

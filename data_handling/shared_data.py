@@ -49,3 +49,51 @@ def clasificar_precio_limpio(precio_limpio: float):
         return "Precio al descuento. \n Se negocia por debajo de su valor nominal."
     else:
         return "Precio con prima. \n Se negocia por encima de su valor nominal."
+
+
+def leer_datos_excel(archivo_subido, nombre_hoja: str):
+    """
+    Lee un archivo Excel, extrae los datos de la hoja especificada y garantiza
+    que la primera columna sea una fecha en formato 'DD/MM/YYYY'.
+
+    Parámetros:
+        archivo_subido: Objeto de archivo subido desde Streamlit (st.file_uploader).
+        nombre_hoja (str): Nombre de la hoja de Excel que se desea extraer.
+
+    Retorna:
+        pd.DataFrame: Un DataFrame con la primera columna como fecha y las
+                      demás columnas con sus nombres originales.
+
+    Lanza:
+        ValueError: Si el archivo no se ha subido, la hoja no existe, los datos están vacíos
+                    o la primera columna no tiene el formato de fecha correcto.
+    """
+    if archivo_subido is None:
+        raise ValueError("❌ No se ha subido ningún archivo.")
+
+    try:
+        df = pd.read_excel(archivo_subido, sheet_name=nombre_hoja)
+    except ValueError:
+        raise ValueError(
+            f"❌ La hoja '{nombre_hoja}' no se encontró en el archivo Excel."
+        )
+
+    if df.empty:
+        raise ValueError(f"❌ La hoja '{nombre_hoja}' está vacía.")
+
+    # Obtener el nombre original de la primera columna
+    nombre_primera_columna = df.columns[0]
+
+    # Convertir la primera columna a formato de fecha
+    df[nombre_primera_columna] = pd.to_datetime(
+        df[nombre_primera_columna], format="%d/%m/%Y", errors="coerce"
+    )
+
+    # Verificar si hay valores nulos después de la conversión
+    if df[nombre_primera_columna].isna().any():
+        raise ValueError(
+            f"❌ La primera columna '{nombre_primera_columna}' tiene valores no válidos. "
+            "Asegúrate de que las fechas estén en formato 'DD/MM/YYYY'."
+        )
+
+    return df  # ✅ Retorna el DataFrame con las columnas originales

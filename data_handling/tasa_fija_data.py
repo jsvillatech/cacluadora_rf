@@ -10,7 +10,7 @@ from logic.shared_logic import (
 )
 
 
-def generar_cashflows_df(
+def generar_cashflows_df_tf(
     fecha_emision,
     fecha_vencimiento,
     fecha_negociacion,
