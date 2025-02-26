@@ -117,7 +117,7 @@ def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
     df = leer_datos_excel(archivo, nombre_hoja)  # Cargar los datos desde el archivo
 
     # Convertir la columna "Fecha" a datetime.date
-    df["Fecha"] = pd.to_datetime(df["Fecha"]).dt.date
+    df["Fecha"] = pd.to_datetime(df["Fecha"])
 
     # Filtrar por la lista de fechas usando isin()
     df_filtrado = df[df["Fecha"].isin(fechas_filtro)]

@@ -122,9 +122,7 @@ def convertir_tasa_cupon_ibr(
     df_fechas_reales_ibr["Fecha"] = pd.to_datetime(df_fechas_reales_ibr["Fecha"])
     df_merged = df_fechas_reales_ibr.merge(tasas_ibr, on="Fecha", how="left")
     # Convertir a diccionario asegurando que la estructura es correcta
-    tasas_ibr_dict = dict(
-        zip(df_merged["Fecha"].dt.date, df_merged["Tasa_ibr_mes_nominal"] / 100)
-    )
+    tasas_ibr_dict = dict(zip(df_merged.iloc[:, 0].dt.date, df_merged.iloc[:, 1] / 100))
 
     ### CASO 1: La fecha de negociación es la misma que la de emisión ###
     if fecha_inicio == fecha_negociacion:
@@ -202,78 +200,62 @@ def dia_habil_anterior(fecha: datetime.date) -> datetime.date:
     return fecha_anterior
 
 
-def jueves_anterior(fecha: datetime.date) -> datetime.date:
+def jueves_habil_anterior(fecha: datetime.date) -> datetime.date:
     """
-    Retorna el jueves anterior (o la misma fecha si ya es jueves).
+    Retorna el día que HARÍA las veces de 'jueves' de publicación.
+    1) Encuentra el jueves de calendario anterior (o el mismo si ya es jueves).
+    2) Si ese jueves no es hábil, retrocede hasta un día hábil (sea miércoles, martes...).
     """
     fecha_aux = fecha
-    while fecha_aux.weekday() != 3:  # 3 = Jueves
+    while fecha_aux.weekday() != 3:  # 3 = jueves
+        fecha_aux -= datetime.timedelta(days=1)
+    while not es_dia_habil_bancario(fecha_aux):
         fecha_aux -= datetime.timedelta(days=1)
     return fecha_aux
 
 
-def viernes_anterior(fecha: datetime.date) -> datetime.date:
+def viernes_habil_anterior(fecha: datetime.date) -> datetime.date:
     """
-    Retorna el viernes anterior (o el mismo viernes si 'fecha' fuera viernes).
+    Retorna el día que HARÍA las veces de 'viernes' de publicación.
+    1) Ubica el viernes de calendario anterior (o el mismo 'fecha' si cae en viernes).
+    2) Si ese viernes es festivo / no hábil, retrocede hasta encontrar un día hábil.
     """
+    # 1) Llevar 'fecha_aux' al viernes de calendario anterior (o igual si ya es viernes)
     fecha_aux = fecha
-    while fecha_aux.weekday() != 4:  # 4 = Viernes
+    while fecha_aux.weekday() != 4:  # 4 = viernes
+        fecha_aux -= datetime.timedelta(days=1)
+    # 2) Si ese viernes no es hábil, retrocedemos (aunque ya no sea viernes)
+    while not es_dia_habil_bancario(fecha_aux):
         fecha_aux -= datetime.timedelta(days=1)
     return fecha_aux
 
 
 def fecha_publicacion_ibr(fecha_objetivo: datetime.date) -> datetime.date:
-    """
-    Dada una fecha 'fecha_objetivo', determina la fecha de publicación del IBR
-    según las reglas:
+    dia_semana = fecha_objetivo.weekday()  # Lunes=0, Martes=1, ...
 
-    1) El IBR publicado el viernes (11:00 a.m.) rige para el lunes siguiente.
-       - Si el lunes NO es día hábil bancario, ese IBR del viernes rige para el martes.
-
-    2) Durante un fin de semana habitual (viernes, sábado, domingo),
-       se usa la tasa publicada el jueves anterior (11:00 a.m.).
-
-    3) Si el lunes es festivo, se usa la tasa publicada el jueves anterior.
-
-    4) Para martes, miércoles y jueves “normales” (sin ser festivos intercalados),
-       se asume que se usa la tasa publicada el día hábil anterior.
-    """
-    dia_semana = fecha_objetivo.weekday()  # Lunes=0, Martes=1, ..., Domingo=6
-
-    # ---------------------------
-    # CASO: Viernes, Sábado, Domingo
-    # => Tasa del jueves anterior
-    # ---------------------------
+    # Viernes, Sábado, Domingo -> usa el jueves_habil_anterior
     if dia_semana in (4, 5, 6):
-        return jueves_anterior(fecha_objetivo)
+        return jueves_habil_anterior(fecha_objetivo)
 
-    # ---------------------------
-    # CASO: Lunes
-    # ---------------------------
+    # Lunes
     if dia_semana == 0:
-        # ¿Es día hábil o festivo?
         if not es_dia_habil_bancario(fecha_objetivo):
-            # Lunes festivo => jueves anterior
-            return jueves_anterior(fecha_objetivo)
+            # Lunes festivo => jueves_habil_anterior
+            return jueves_habil_anterior(fecha_objetivo)
         else:
-            # Lunes hábil => viernes anterior
-            return viernes_anterior(fecha_objetivo)
+            # Lunes hábil => viernes_habil_anterior
+            return viernes_habil_anterior(fecha_objetivo)
 
-    # ---------------------------
-    # CASO: Martes
-    # ---------------------------
+    # Martes
     if dia_semana == 1:
         # Revisamos si el lunes anterior fue festivo
         fecha_lunes = fecha_objetivo - datetime.timedelta(days=1)
         if not es_dia_habil_bancario(fecha_lunes):
-            # Si el lunes no fue hábil => tasa del viernes anterior
-            return viernes_anterior(fecha_objetivo)
+            # => tasa del viernes_habil_anterior
+            return viernes_habil_anterior(fecha_objetivo)
         else:
-            # Si fue hábil => tasa del día hábil anterior (lunes)
+            # Si fue hábil => tasa del día hábil anterior
             return dia_habil_anterior(fecha_objetivo)
 
-    # ---------------------------
-    # CASO: Miércoles o Jueves
-    # => Tasa del día hábil anterior
-    # ---------------------------
+    # Miércoles o Jueves -> tasa del día hábil anterior
     return dia_habil_anterior(fecha_objetivo)

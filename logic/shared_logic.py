@@ -121,25 +121,39 @@ def calcular_numero_dias_descuento_cupon(
     fecha_negociacion: datetime, lista_fechas_pago_cupon: list[str]
 ):
     """
-    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas.
+    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas,
+    ignorando años bisiestos (29 de febrero).
 
     Parámetros:
-    fecha_negociacion (str): Fecha de negociación en formato 'DD/MM/YYYY'.
+    fecha_negociacion (datetime.date): Fecha de negociación.
     lista_fechas_pago_cupon (list): Lista de fechas en formato 'DD/MM/YYYY'.
 
     Retorna:
-    list[int]: Una lista de tuplas con cada fecha y su diferencia en días con la fecha de negociación.
+    list[int]: Lista con la diferencia en días ignorando los bisiestos.
     """
-    # Convert `fecha_negociacion` from `datetime.date` to `datetime.datetime`
+    # Convertir `fecha_negociacion` a datetime completo
     fecha_negociacion_dt = datetime.combine(fecha_negociacion, datetime.min.time())
-    # Calcular diferencias
-    diferencias = [
-        max(0, (datetime.strptime(fecha, "%d/%m/%Y") - fecha_negociacion_dt).days)
-        for fecha in lista_fechas_pago_cupon
-    ]
-    diferencias[0] = (
-        0  # Se reemplaza un 0 al inicio de la lista porque sería la fecha inicial.
+    fecha_negociacion_365 = (fecha_negociacion_dt.year * 365) + (
+        fecha_negociacion_dt.timetuple().tm_yday
+        - (
+            1
+            if fecha_negociacion_dt.month > 2 and fecha_negociacion_dt.year % 4 == 0
+            else 0
+        )
     )
+
+    diferencias = []
+
+    for fecha in lista_fechas_pago_cupon:
+        fecha_dt = datetime.strptime(fecha, "%d/%m/%Y")
+        fecha_365 = (fecha_dt.year * 365) + (
+            fecha_dt.timetuple().tm_yday
+            - (1 if fecha_dt.month > 2 and fecha_dt.year % 4 == 0 else 0)
+        )
+        diferencias.append(max(0, fecha_365 - fecha_negociacion_365))
+
+    # Ensure the first element is 0
+    diferencias[0] = 0
 
     return diferencias
 
