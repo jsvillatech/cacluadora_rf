@@ -82,7 +82,7 @@ with main_header_col1:
 
         with header_form_col2:
             tasa_cupon = st.number_input(
-                "**Tasa de cupón (Spread)**",
+                "**Tasa de cupón (IBR+Spread)**",
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
@@ -102,7 +102,7 @@ with main_header_col1:
             )
             fecha_negociacion_error = st.empty()
             tasa_mercado = st.number_input(
-                "**Tasa de Rendimiento EA**",
+                "**Tasa Negociacion (IBR+Spread)**",
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
