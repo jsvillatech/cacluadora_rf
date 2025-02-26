@@ -54,6 +54,54 @@ def fetch_ibr_data_banrep(fecha_inicio: datetime.date, fecha_fin: datetime.date)
         raise Exception("Sorry, something went wrong, try again later")
 
 
+def sumar_negociacion_ibr(
+    tasa_negociacion: float, fecha_negociacion: datetime.date, archivo=None
+):
+    """
+    Calcula la tasa de negociación IBR sumando la tasa de negociación a la tasa IBR real
+    obtenida desde el Banco de la República o desde un archivo de proyecciones.
+
+    Parámetros:
+        tasa_negociacion (float): La tasa adicional que se suma a la tasa IBR.
+        fecha_negociacion (datetime.date): La fecha de la negociación.
+        archivo (optional): Archivo con datos de proyección. Si es None, se usa data en línea.
+
+    Retorna:
+        pd.Series: Serie con la tasa de negociación IBR si se usa data en línea.
+        None: Si se usa data desde un archivo (pendiente de implementación).
+
+    Excepciones:
+        Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
+    """
+    try:
+        # Para data en línea
+        if archivo is None:
+            ibr_fecha_real = fecha_publicacion_ibr(
+                fecha_negociacion
+            )  # Se obtiene la fecha real del IBR
+            ibr_tasa_real = fetch_ibr_data_banrep(
+                fecha_inicio=ibr_fecha_real, fecha_fin=ibr_fecha_real
+            )
+
+            if ibr_tasa_real.empty:
+                raise ValueError(
+                    "No se encontraron datos de IBR en BanRep para la fecha dada."
+                )
+
+            # Sumar la tasa de negociación a la tasa IBR
+            tasa_ibr_spread = (
+                ibr_tasa_real.iloc[0]["Tasa_ibr_mes_nominal"] + tasa_negociacion
+            )
+            return tasa_ibr_spread
+
+        # Para data subida (proyecciones)
+        else:
+            pass  # Implementación pendiente para manejar archivos de proyección
+
+    except Exception as e:
+        raise Exception(f"Error al calcular la tasa de negociación IBR: {str(e)}")
+
+
 def convertir_tasa_cupon_ibr(
     base_dias_anio: str,
     periodicidad: str,

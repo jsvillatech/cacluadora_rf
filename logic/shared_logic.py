@@ -219,3 +219,33 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     """
     flujo_pesos = [CFt / 100 * valor_nominal for CFt in lista_cfs]
     return flujo_pesos
+
+
+def convertir_nominal_a_efectiva_anual(tasa_nominal_negociacion: float, periodo: str):
+    """
+    Convierte una tasa nominal a tasa efectiva anual (EA).
+    :param tasa_nominal: Tasa nominal en porcentaje (ej. 18.1 para 18.1%)
+    :param periodo: Periodicidad de la tasa ('mensual', 'trimestral', 'semestral', 'anual')
+    :return: Tasa efectiva anual en porcentaje
+    """
+    periodos_por_año = {
+        "Mensual": 12,
+        "Trimestral": 4,
+        "Semestral": 2,
+        "Anual": 1,  # Si es anual, la tasa nominal ya es efectiva
+    }
+
+    if periodo not in periodos_por_año:
+        raise ValueError(
+            "El periodo debe ser 'mensual', 'trimestral', 'semestral' o 'anual'"
+        )
+
+    n = periodos_por_año[periodo]
+
+    if n == 1:
+        return tasa_nominal_negociacion  # Si es anual, ya es efectiva
+
+    # Convertir tasa nominal a decimal y calcular efectiva anual
+    tasa_efectiva_anual = (1 + (tasa_nominal_negociacion / 100) / n) ** n - 1
+
+    return tasa_efectiva_anual * 100  # Convertir a porcentaje
