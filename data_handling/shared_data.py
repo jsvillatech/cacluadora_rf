@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import date
 import numpy_financial as npf
+from logic.shared_logic import tir_a_ea
 
 
 def cupon_corrido_calc(df: pd.DataFrame, date_negociacion: date):
@@ -116,23 +117,24 @@ def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
     - Un DataFrame filtrado con las fechas especificadas o vacío si no hay coincidencias.
     """
     df = leer_datos_excel(archivo, nombre_hoja)  # Cargar los datos desde el archivo
-
-    # Convertir la columna "Fecha" a datetime.date
-    df["Fecha"] = pd.to_datetime(df["Fecha"])
-
+    # Convertir la lista de fechas a datetime64[ns]
+    fechas_filtro = pd.to_datetime(fechas_filtro)
     # Filtrar por la lista de fechas usando isin()
     df_filtrado = df[df["Fecha"].isin(fechas_filtro)]
 
     return df_filtrado
 
 
-def calcular_tir_desde_df(df: pd.DataFrame, columna_flujos: str, valor_nominal: float):
+def calcular_tir_desde_df(
+    df: pd.DataFrame, columna_flujos: str, valor_giro: float, periodo: str
+):
     """
     Calcula la Tasa Interna de Retorno (TIR) a partir de un DataFrame con flujos de efectivo.
 
     :param df: DataFrame de pandas con los datos de flujo de efectivo.
     :param columna_flujos: Nombre de la columna que contiene los flujos de caja.
-    :param valor_nominal: Valor nominal inicial de la inversión (debe ser negativo).
+    :param valor_giro: Valor nominal inicial de la inversión (debe ser negativo).
+    :param periodo: Periodo de la TIR. Opciones: 'Mensual', 'Trimestral', 'Semestral', 'Anual'
     :return: TIR en porcentaje.
     """
 
@@ -140,12 +142,15 @@ def calcular_tir_desde_df(df: pd.DataFrame, columna_flujos: str, valor_nominal: 
     cash_flows = df[columna_flujos].tolist()
 
     # Agregar la inversión inicial negativa al inicio
-    cash_flows.insert(0, -valor_nominal)
+    cash_flows.insert(0, -valor_giro)
 
     # Calcular la TIR
     tir = npf.irr(cash_flows)
 
+    # Convertir a EA
+    tir_ea = tir_a_ea(tir=tir, periodo=periodo)
+
     # Convertir a porcentaje
-    tir_percentage = tir * 100
+    tir_percentage = tir_ea * 100
 
     return tir_percentage

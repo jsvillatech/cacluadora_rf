@@ -217,7 +217,7 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     Retorna:
     list: Lista con los valores de los flujos en pesos.
     """
-    flujo_pesos = [CFt / 100 * valor_nominal for CFt in lista_cfs]
+    flujo_pesos = [round(CFt, 3) / 100 * valor_nominal for CFt in lista_cfs]
     return flujo_pesos
 
 
@@ -249,3 +249,30 @@ def convertir_nominal_a_efectiva_anual(tasa_nominal_negociacion: float, periodo:
     tasa_efectiva_anual = (1 + (tasa_nominal_negociacion / 100) / n) ** n - 1
 
     return tasa_efectiva_anual * 100  # Convertir a porcentaje
+
+
+def tir_a_ea(tir: float, periodo: str):
+    """
+    Convierte una TIR en una Tasa Efectiva Anual (EA).
+
+    Parámetros:
+    tir (float): TIR en porcentaje (ejemplo: 1.45 para 1.45%)
+    periodo (str): Periodo de la TIR. Opciones: 'Mensual', 'Trimestral', 'Semestral', 'Anual'
+
+    Retorna:
+    float: Tasa Efectiva Anual en porcentaje
+    """
+    tir_decimal = tir / 100  # Convertir a decimal
+
+    if periodo == "Mensual":
+        ea = (1 + tir_decimal) ** 12 - 1
+    elif periodo == "Trimestral":
+        ea = (1 + tir_decimal) ** 4 - 1
+    elif periodo == "Semestral":
+        ea = (1 + tir_decimal) ** 2 - 1
+    elif periodo == "Anual":
+        ea = (1 + tir_decimal) ** 1 - 1
+    else:
+        raise ValueError("El periodo debe ser 'mensual', 'trimestral' o 'semestral'")
+
+    return ea * 100  # Convertir a porcentaje sin redondear

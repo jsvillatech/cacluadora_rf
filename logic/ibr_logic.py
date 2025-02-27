@@ -96,7 +96,23 @@ def sumar_negociacion_ibr(
 
         # Para data subida (proyecciones)
         else:
-            pass  # Implementación pendiente para manejar archivos de proyección
+            # Obtener tasas IBR en batch
+            ibr_fecha_real = fecha_publicacion_ibr(fecha_negociacion)
+            tasas_ibr = filtrar_por_fecha(
+                archivo=archivo,
+                nombre_hoja="IBR Estimada",
+                fechas_filtro=[ibr_fecha_real],
+            )
+            if tasas_ibr.empty:
+                raise ValueError(
+                    "No se encontraron datos de IBR en BanRep para la fecha dada."
+                )
+            # Sumar la tasa de negociación a la tasa IBR
+            tasa_ibr_spread = (
+                tasas_ibr.iloc[0]["IBR Estimada"]
+            ) * 100 + tasa_negociacion
+
+            return tasa_ibr_spread
 
     except Exception as e:
         raise Exception(f"Error al calcular la tasa de negociación IBR: {str(e)}")
@@ -124,7 +140,6 @@ def convertir_tasa_cupon_ibr_online(
     Retorna:
     list[float]: Lista de tasas convertidas a la periodicidad especificada.
     """
-    tasa_anual_cupon = tasa_anual_cupon / 100
 
     base = {"30/360": 360, "365/365": 365}
     periodos_por_anio = {"Mensual": 12, "Trimestral": 4, "Semestral": 2, "Anual": 1}
@@ -152,7 +167,7 @@ def convertir_tasa_cupon_ibr_online(
                 f"No se encontró la tasa IBR para la fecha: {fecha_real_ibr}."
             )
 
-        tasa_ibr_spread = tasa_ibr_real + tasa_anual_cupon
+        tasa_ibr_spread = (tasa_ibr_real.iloc[0, 1] + tasa_anual_cupon) / 100
         tasas = [
             tasa_ibr_spread / periodos_por_anio[periodicidad] for _ in lista_fechas
         ]
@@ -175,7 +190,7 @@ def convertir_tasa_cupon_ibr_online(
             )
 
         # Calcular la tasa para el primer cupón
-        tasa_ibr_spread_1 = tasa_ibr_1 + tasa_anual_cupon
+        tasa_ibr_spread_1 = (tasa_ibr_1.iloc[0, 1] + tasa_anual_cupon) / 100
         tasas.append(0)  # Se agrega 0 porque es el valor de la tasa en el primer cupón
         tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
 
@@ -191,7 +206,9 @@ def convertir_tasa_cupon_ibr_online(
                 Por favor usa la opcion de subir un archivo con las tasas proyectadss"""
             )
         for i in range(2, len(lista_fechas)):
-            tasa_ibr_spread_i = tasa_ibr_negociacion + tasa_anual_cupon
+            tasa_ibr_spread_i = (
+                tasa_ibr_negociacion.iloc[0, 1] + tasa_anual_cupon
+            ) / 100
             tasas.append(tasa_ibr_spread_i / periodos_por_anio[periodicidad])
 
         return tasas
@@ -260,7 +277,7 @@ def convertir_tasa_cupon_ibr_proyectado(
     df_fechas_reales_ibr["Fecha"] = pd.to_datetime(df_fechas_reales_ibr["Fecha"])
     df_merged = df_fechas_reales_ibr.merge(tasas_ibr, on="Fecha", how="left")
     # Convertir a diccionario asegurando que la estructura es correcta
-    tasas_ibr_dict = dict(zip(df_merged.iloc[:, 0].dt.date, df_merged.iloc[:, 1] / 100))
+    tasas_ibr_dict = dict(zip(df_merged.iloc[:, 0].dt.date, df_merged.iloc[:, 1]))
 
     ### CASO 1: La fecha de negociación es la misma que la de emisión ###
     if fecha_inicio == fecha_negociacion:

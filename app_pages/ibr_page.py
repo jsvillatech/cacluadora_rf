@@ -232,7 +232,7 @@ if submitted:
 
                 # Calculate new metric values
                 precio_sucio = df["VP CF"].sum()
-                valor_giro = (precio_sucio / 100) * valor_nominal
+                valor_giro = (round(precio_sucio, 3) / 100) * valor_nominal
                 cupon_corrido = cupon_corrido_calc(
                     df=df, date_negociacion=fecha_negociacion
                 )
@@ -241,11 +241,14 @@ if submitted:
                 valor_TIR_negociar = obtener_tasa_negociacion_EA(
                     tasa_mercado=tasa_mercado,
                     fecha_negociacion=fecha_negociacion,
-                    archivo=uploaded_file,
+                    archivo_subido=uploaded_file,
                     periodo_cupon=periodo_cupon,
                 )
                 valor_TIR_inversion = calcular_tir_desde_df(
-                    df=df, columna_flujos="Flujo Pesos ($)", valor_nominal=valor_nominal
+                    df=df,
+                    columna_flujos="Flujo Pesos ($)",
+                    valor_giro=valor_giro,
+                    periodo=periodo_cupon,
                 )
                 # Update metrics dynamically
                 precio_sucio_placeholder.metric(
