@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import date
+import numpy_financial as npf
 
 
 def cupon_corrido_calc(df: pd.DataFrame, date_negociacion: date):
@@ -123,3 +124,28 @@ def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
     df_filtrado = df[df["Fecha"].isin(fechas_filtro)]
 
     return df_filtrado
+
+
+def calcular_tir_desde_df(df: pd.DataFrame, columna_flujos: str, valor_nominal: float):
+    """
+    Calcula la Tasa Interna de Retorno (TIR) a partir de un DataFrame con flujos de efectivo.
+
+    :param df: DataFrame de pandas con los datos de flujo de efectivo.
+    :param columna_flujos: Nombre de la columna que contiene los flujos de caja.
+    :param valor_nominal: Valor nominal inicial de la inversión (debe ser negativo).
+    :return: TIR en porcentaje.
+    """
+
+    # Convertir la columna de flujos de caja en una lista
+    cash_flows = df[columna_flujos].tolist()
+
+    # Agregar la inversión inicial negativa al inicio
+    cash_flows.insert(0, -valor_nominal)
+
+    # Calcular la TIR
+    tir = npf.irr(cash_flows)
+
+    # Convertir a porcentaje
+    tir_percentage = tir * 100
+
+    return tir_percentage

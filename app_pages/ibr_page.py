@@ -2,8 +2,8 @@ import streamlit as st
 from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.ibr_data import generar_cashflows_df_ibr
-from data_handling.shared_data import cupon_corrido_calc
+from data_handling.ibr_data import generar_cashflows_df_ibr, obtener_tasa_negociacion_EA
+from data_handling.shared_data import cupon_corrido_calc, calcular_tir_desde_df
 
 # Initialize session state
 if "uploaded_file" not in st.session_state:
@@ -238,7 +238,15 @@ if submitted:
                 )
                 precio_limpio = precio_sucio - cupon_corrido
                 precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
-
+                valor_TIR_negociar = obtener_tasa_negociacion_EA(
+                    tasa_mercado=tasa_mercado,
+                    fecha_negociacion=fecha_negociacion,
+                    archivo=uploaded_file,
+                    periodo_cupon=periodo_cupon,
+                )
+                valor_TIR_inversion = calcular_tir_desde_df(
+                    df=df, columna_flujos="Flujo Pesos ($)", valor_nominal=valor_nominal
+                )
                 # Update metrics dynamically
                 precio_sucio_placeholder.metric(
                     "**Precio Sucio**", f"{precio_sucio:.3f}%"
@@ -255,4 +263,10 @@ if submitted:
                 )
                 precio_limpio_placeholder_venta.markdown(
                     precio_limpio_venta.replace("\n", "  \n")
+                )
+                valor_tasa_negociacion_EA_placeholder.metric(
+                    "**Tasa Negociación EA**", f"{valor_TIR_negociar:.3f}%"
+                )
+                valor_TIR_inversion_placeholder.metric(
+                    "**TIR Inversión**", f"{valor_TIR_inversion:.3f}%"
                 )
