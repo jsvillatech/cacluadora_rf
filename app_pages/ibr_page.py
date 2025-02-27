@@ -2,20 +2,12 @@ import streamlit as st
 from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.ibr_data import generar_cashflows_df_ibr
-from data_handling.shared_data import cupon_corrido_calc
+from data_handling.ibr_data import generar_cashflows_df_ibr, obtener_tasa_negociacion_EA
+from data_handling.shared_data import cupon_corrido_calc, calcular_tir_desde_df
 
-# Initialize session state if not already set
-if "disable_uploader" not in st.session_state:
-    st.session_state.disable_uploader = True
+# Initialize session state
 if "uploaded_file" not in st.session_state:
     st.session_state.uploaded_file = None  # Store the uploaded file persistently
-
-
-# Function to toggle the file uploader state
-def toggle_uploader():
-    st.session_state.disable_uploader = st.session_state.radio_option == "Online"
-    st.session_state.uploaded_file = None
 
 
 # Function to store the uploaded file persistently
@@ -32,21 +24,25 @@ upload_col1, upload_col2 = st.columns(2)
 with upload_col1:
     # Radio button to enable/disable file uploader (Outside Form)
     radio_data = st.radio(
-        "**Usar los datos online o subir el archivo excel de Proyecciones?**",
-        ("Online", "Excel"),
+        "**Fuente de Datos**",
+        ("Online", "Excel de Proyecciones"),
         key="radio_option",
-        on_change=toggle_uploader,
         index=0,
     )
+
 with upload_col2:
-    # File uploader (Outside Form) but stores in session state
-    file = st.file_uploader(
-        "Selecciona el excel con los datos de IBR",
-        disabled=st.session_state.disable_uploader,
-        key="file_uploader_key",
-        on_change=store_file,
-        type=["xlsx"],
-    )
+    # Clear uploaded file when switching to "Online"
+    if st.session_state.radio_option == "Online":
+        st.session_state.uploaded_file = None  # Reset uploaded file
+
+    # Display file uploader only if "Excel" is selected
+    if st.session_state.radio_option == "Excel de Proyecciones":
+        uploaded_file = st.file_uploader(
+            "Selecciona el excel con los datos de IBR Proyectados",
+            key="file_uploader_key",
+            type=["xlsx"],
+            on_change=store_file,
+        )
 
 # Main form
 main_header_col1, main_header_col2 = st.columns(2)
@@ -102,7 +98,7 @@ with main_header_col1:
             )
             fecha_negociacion_error = st.empty()
             tasa_mercado = st.number_input(
-                "**Tasa de Rendimiento EA**",
+                "**Tasa Negociacion (Spread)**",
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
@@ -144,12 +140,18 @@ with main_header_col2:
             precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
             valor_nominal_placeholder = st.empty()
             valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
+            valor_tasa_negociacion_EA_placeholder = st.empty()
+            valor_tasa_negociacion_EA_placeholder.metric(
+                label="Tasa Negociación EA", value="0%"
+            )
 
         with col_results2:
             cupon_corrido_placeholder = st.empty()
             cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
             valor_giro_placeholder = st.empty()
             valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
+            valor_TIR_inversion_placeholder = st.empty()
+            valor_TIR_inversion_placeholder.metric(label="TIR Inversión", value="0%")
 
         with col_results3:
             precio_limpio_placeholder = st.empty()
@@ -230,13 +232,24 @@ if submitted:
 
                 # Calculate new metric values
                 precio_sucio = df["VP CF"].sum()
-                valor_giro = (precio_sucio / 100) * valor_nominal
+                valor_giro = (round(precio_sucio, 3) / 100) * valor_nominal
                 cupon_corrido = cupon_corrido_calc(
                     df=df, date_negociacion=fecha_negociacion
                 )
                 precio_limpio = precio_sucio - cupon_corrido
                 precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
-
+                valor_TIR_negociar = obtener_tasa_negociacion_EA(
+                    tasa_mercado=tasa_mercado,
+                    fecha_negociacion=fecha_negociacion,
+                    archivo_subido=uploaded_file,
+                    periodo_cupon=periodo_cupon,
+                )
+                valor_TIR_inversion = calcular_tir_desde_df(
+                    df=df,
+                    columna_flujos="Flujo Pesos ($)",
+                    valor_giro=valor_giro,
+                    periodo=periodo_cupon,
+                )
                 # Update metrics dynamically
                 precio_sucio_placeholder.metric(
                     "**Precio Sucio**", f"{precio_sucio:.3f}%"
@@ -253,4 +266,10 @@ if submitted:
                 )
                 precio_limpio_placeholder_venta.markdown(
                     precio_limpio_venta.replace("\n", "  \n")
+                )
+                valor_tasa_negociacion_EA_placeholder.metric(
+                    "**Tasa Negociación EA**", f"{valor_TIR_negociar:.3f}%"
+                )
+                valor_TIR_inversion_placeholder.metric(
+                    "**TIR Inversión**", f"{valor_TIR_inversion:.3f}%"
                 )

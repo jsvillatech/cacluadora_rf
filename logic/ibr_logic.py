@@ -54,7 +54,167 @@ def fetch_ibr_data_banrep(fecha_inicio: datetime.date, fecha_fin: datetime.date)
         raise Exception("Sorry, something went wrong, try again later")
 
 
-def convertir_tasa_cupon_ibr(
+def sumar_negociacion_ibr(
+    tasa_negociacion: float, fecha_negociacion: datetime.date, archivo=None
+):
+    """
+    Calcula la tasa de negociación IBR sumando la tasa de negociación a la tasa IBR real
+    obtenida desde el Banco de la República o desde un archivo de proyecciones.
+
+    Parámetros:
+        tasa_negociacion (float): La tasa adicional que se suma a la tasa IBR.
+        fecha_negociacion (datetime.date): La fecha de la negociación.
+        archivo (optional): Archivo con datos de proyección. Si es None, se usa data en línea.
+
+    Retorna:
+        pd.Series: Serie con la tasa de negociación IBR si se usa data en línea.
+        None: Si se usa data desde un archivo (pendiente de implementación).
+
+    Excepciones:
+        Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
+    """
+    try:
+        # Para data en línea
+        if archivo is None:
+            ibr_fecha_real = fecha_publicacion_ibr(
+                fecha_negociacion
+            )  # Se obtiene la fecha real del IBR
+            ibr_tasa_real = fetch_ibr_data_banrep(
+                fecha_inicio=ibr_fecha_real, fecha_fin=ibr_fecha_real
+            )
+
+            if ibr_tasa_real.empty:
+                raise ValueError(
+                    "No se encontraron datos de IBR en BanRep para la fecha dada."
+                )
+
+            # Sumar la tasa de negociación a la tasa IBR
+            tasa_ibr_spread = (
+                ibr_tasa_real.iloc[0]["Tasa_ibr_mes_nominal"] + tasa_negociacion
+            )
+            return tasa_ibr_spread
+
+        # Para data subida (proyecciones)
+        else:
+            # Obtener tasas IBR en batch
+            ibr_fecha_real = fecha_publicacion_ibr(fecha_negociacion)
+            tasas_ibr = filtrar_por_fecha(
+                archivo=archivo,
+                nombre_hoja="IBR Estimada",
+                fechas_filtro=[ibr_fecha_real],
+            )
+            if tasas_ibr.empty:
+                raise ValueError(
+                    "No se encontraron datos de IBR en BanRep para la fecha dada."
+                )
+            # Sumar la tasa de negociación a la tasa IBR
+            tasa_ibr_spread = (
+                tasas_ibr.iloc[0]["IBR Estimada"]
+            ) * 100 + tasa_negociacion
+
+            return tasa_ibr_spread
+
+    except Exception as e:
+        raise Exception(f"Error al calcular la tasa de negociación IBR: {str(e)}")
+
+
+def convertir_tasa_cupon_ibr_online(
+    base_dias_anio: str,
+    periodicidad: str,
+    tasa_anual_cupon: float,
+    lista_fechas: list[str],
+    fecha_inicio: datetime.date,
+    fecha_negociacion: datetime.date,
+):
+    """
+    Convierte una tasa nominal anual a una nominal en otra periodicidad. Método online.
+
+    Parámetros:
+    base_dias_anio (str): Base de cálculo de días ('30/360' o '365/365').
+    periodicidad (str): Periodo de conversión ('Mensual', 'Trimestral', 'Semestral', 'Anual').
+    tasa_anual_cupon (float): Tasa anual expresada en decimal (Ej: 10% -> 0.10).
+    lista_fechas (list[str]): Lista de fechas de cada cupón en formato 'DD/MM/YYYY'.
+    fecha_inicio (datetime.date): Fecha de inicio para la consulta de tasas IBR.
+    fecha_negociacion (datetime.date): Fecha de negociación en formato 'DD/MM/YYYY'.
+
+    Retorna:
+    list[float]: Lista de tasas convertidas a la periodicidad especificada.
+    """
+
+    base = {"30/360": 360, "365/365": 365}
+    periodos_por_anio = {"Mensual": 12, "Trimestral": 4, "Semestral": 2, "Anual": 1}
+
+    if not lista_fechas:
+        raise ValueError("La lista de fechas de cupones está vacía.")
+
+    if periodicidad not in periodos_por_anio:
+        raise ValueError(
+            "Periodicidad no válida. Usa: 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+        )
+
+    if base_dias_anio not in base:
+        raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
+
+    ### CASO 1: La fecha de negociación es la misma que la de emisión ###
+    if fecha_inicio == fecha_negociacion:
+        fecha_real_ibr = fecha_publicacion_ibr(fecha_inicio)
+        tasa_ibr_real = fetch_ibr_data_banrep(
+            fecha_inicio=fecha_real_ibr, fecha_fin=fecha_real_ibr
+        )
+
+        if tasa_ibr_1.empty:
+            raise ValueError(
+                f"No se encontró la tasa IBR para la fecha: {fecha_real_ibr}."
+            )
+
+        tasa_ibr_spread = (tasa_ibr_real.iloc[0, 1] + tasa_anual_cupon) / 100
+        tasas = [
+            tasa_ibr_spread / periodos_por_anio[periodicidad] for _ in lista_fechas
+        ]
+        tasas[0] = 0  # El primer cupón tiene tasa 0 por convención
+        return tasas
+
+    ### CASO 2: El título se negocia después de su emisión ###
+    else:
+        tasas = []
+        # Obtener IBR del día anterior a la fecha de emisión para el primer cupón
+        fecha_real_ibr_1 = fecha_publicacion_ibr(fecha_inicio)
+        tasa_ibr_1 = fetch_ibr_data_banrep(
+            fecha_inicio=fecha_real_ibr_1, fecha_fin=fecha_real_ibr_1
+        )
+
+        if tasa_ibr_1.empty:
+            raise ValueError(
+                f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_1}.
+                Por favor usa la opcion de subir un archivo con las tasas proyectadas"""
+            )
+
+        # Calcular la tasa para el primer cupón
+        tasa_ibr_spread_1 = (tasa_ibr_1.iloc[0, 1] + tasa_anual_cupon) / 100
+        tasas.append(0)  # Se agrega 0 porque es el valor de la tasa en el primer cupón
+        tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
+
+        # Obtener IBR del día anterior a la fecha de negociación para los siguientes cupones
+        fecha_real_ibr_negociacion = fecha_publicacion_ibr(fecha_negociacion)
+        tasa_ibr_negociacion = fetch_ibr_data_banrep(
+            fecha_inicio=fecha_real_ibr_negociacion,
+            fecha_fin=fecha_real_ibr_negociacion,
+        )
+        if tasa_ibr_negociacion.empty:
+            raise ValueError(
+                f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_negociacion}.
+                Por favor usa la opcion de subir un archivo con las tasas proyectadss"""
+            )
+        for i in range(2, len(lista_fechas)):
+            tasa_ibr_spread_i = (
+                tasa_ibr_negociacion.iloc[0, 1] + tasa_anual_cupon
+            ) / 100
+            tasas.append(tasa_ibr_spread_i / periodos_por_anio[periodicidad])
+
+        return tasas
+
+
+def convertir_tasa_cupon_ibr_proyectado(
     base_dias_anio: str,
     periodicidad: str,
     tasa_anual_cupon: float,
@@ -101,14 +261,9 @@ def convertir_tasa_cupon_ibr(
     fechas_reales_ibr = [fecha_publicacion_ibr(f) for f in fechas_cupones]
 
     # Obtener tasas IBR en batch
-    if archivo is None:
-        tasas_ibr = fetch_ibr_data_banrep(
-            fecha_inicio=min(fechas_reales_ibr), fecha_fin=max(fechas_reales_ibr)
-        )
-    else:
-        tasas_ibr = filtrar_por_fecha(
-            archivo=archivo, nombre_hoja="IBR Estimada", fechas_filtro=fechas_reales_ibr
-        )
+    tasas_ibr = filtrar_por_fecha(
+        archivo=archivo, nombre_hoja="IBR Estimada", fechas_filtro=fechas_reales_ibr
+    )
 
     # Asegurar que tasas_ibr es una serie o lista antes de dividir
     if isinstance(tasas_ibr, pd.DataFrame):
@@ -122,9 +277,7 @@ def convertir_tasa_cupon_ibr(
     df_fechas_reales_ibr["Fecha"] = pd.to_datetime(df_fechas_reales_ibr["Fecha"])
     df_merged = df_fechas_reales_ibr.merge(tasas_ibr, on="Fecha", how="left")
     # Convertir a diccionario asegurando que la estructura es correcta
-    tasas_ibr_dict = dict(
-        zip(df_merged["Fecha"].dt.date, df_merged["Tasa_ibr_mes_nominal"] / 100)
-    )
+    tasas_ibr_dict = dict(zip(df_merged.iloc[:, 0].dt.date, df_merged.iloc[:, 1]))
 
     ### CASO 1: La fecha de negociación es la misma que la de emisión ###
     if fecha_inicio == fecha_negociacion:
@@ -202,78 +355,62 @@ def dia_habil_anterior(fecha: datetime.date) -> datetime.date:
     return fecha_anterior
 
 
-def jueves_anterior(fecha: datetime.date) -> datetime.date:
+def jueves_habil_anterior(fecha: datetime.date) -> datetime.date:
     """
-    Retorna el jueves anterior (o la misma fecha si ya es jueves).
+    Retorna el día que HARÍA las veces de 'jueves' de publicación.
+    1) Encuentra el jueves de calendario anterior (o el mismo si ya es jueves).
+    2) Si ese jueves no es hábil, retrocede hasta un día hábil (sea miércoles, martes...).
     """
     fecha_aux = fecha
-    while fecha_aux.weekday() != 3:  # 3 = Jueves
+    while fecha_aux.weekday() != 3:  # 3 = jueves
+        fecha_aux -= datetime.timedelta(days=1)
+    while not es_dia_habil_bancario(fecha_aux):
         fecha_aux -= datetime.timedelta(days=1)
     return fecha_aux
 
 
-def viernes_anterior(fecha: datetime.date) -> datetime.date:
+def viernes_habil_anterior(fecha: datetime.date) -> datetime.date:
     """
-    Retorna el viernes anterior (o el mismo viernes si 'fecha' fuera viernes).
+    Retorna el día que HARÍA las veces de 'viernes' de publicación.
+    1) Ubica el viernes de calendario anterior (o el mismo 'fecha' si cae en viernes).
+    2) Si ese viernes es festivo / no hábil, retrocede hasta encontrar un día hábil.
     """
+    # 1) Llevar 'fecha_aux' al viernes de calendario anterior (o igual si ya es viernes)
     fecha_aux = fecha
-    while fecha_aux.weekday() != 4:  # 4 = Viernes
+    while fecha_aux.weekday() != 4:  # 4 = viernes
+        fecha_aux -= datetime.timedelta(days=1)
+    # 2) Si ese viernes no es hábil, retrocedemos (aunque ya no sea viernes)
+    while not es_dia_habil_bancario(fecha_aux):
         fecha_aux -= datetime.timedelta(days=1)
     return fecha_aux
 
 
 def fecha_publicacion_ibr(fecha_objetivo: datetime.date) -> datetime.date:
-    """
-    Dada una fecha 'fecha_objetivo', determina la fecha de publicación del IBR
-    según las reglas:
+    dia_semana = fecha_objetivo.weekday()  # Lunes=0, Martes=1, ...
 
-    1) El IBR publicado el viernes (11:00 a.m.) rige para el lunes siguiente.
-       - Si el lunes NO es día hábil bancario, ese IBR del viernes rige para el martes.
-
-    2) Durante un fin de semana habitual (viernes, sábado, domingo),
-       se usa la tasa publicada el jueves anterior (11:00 a.m.).
-
-    3) Si el lunes es festivo, se usa la tasa publicada el jueves anterior.
-
-    4) Para martes, miércoles y jueves “normales” (sin ser festivos intercalados),
-       se asume que se usa la tasa publicada el día hábil anterior.
-    """
-    dia_semana = fecha_objetivo.weekday()  # Lunes=0, Martes=1, ..., Domingo=6
-
-    # ---------------------------
-    # CASO: Viernes, Sábado, Domingo
-    # => Tasa del jueves anterior
-    # ---------------------------
+    # Viernes, Sábado, Domingo -> usa el jueves_habil_anterior
     if dia_semana in (4, 5, 6):
-        return jueves_anterior(fecha_objetivo)
+        return jueves_habil_anterior(fecha_objetivo)
 
-    # ---------------------------
-    # CASO: Lunes
-    # ---------------------------
+    # Lunes
     if dia_semana == 0:
-        # ¿Es día hábil o festivo?
         if not es_dia_habil_bancario(fecha_objetivo):
-            # Lunes festivo => jueves anterior
-            return jueves_anterior(fecha_objetivo)
+            # Lunes festivo => jueves_habil_anterior
+            return jueves_habil_anterior(fecha_objetivo)
         else:
-            # Lunes hábil => viernes anterior
-            return viernes_anterior(fecha_objetivo)
+            # Lunes hábil => viernes_habil_anterior
+            return viernes_habil_anterior(fecha_objetivo)
 
-    # ---------------------------
-    # CASO: Martes
-    # ---------------------------
+    # Martes
     if dia_semana == 1:
         # Revisamos si el lunes anterior fue festivo
         fecha_lunes = fecha_objetivo - datetime.timedelta(days=1)
         if not es_dia_habil_bancario(fecha_lunes):
-            # Si el lunes no fue hábil => tasa del viernes anterior
-            return viernes_anterior(fecha_objetivo)
+            # => tasa del viernes_habil_anterior
+            return viernes_habil_anterior(fecha_objetivo)
         else:
-            # Si fue hábil => tasa del día hábil anterior (lunes)
+            # Si fue hábil => tasa del día hábil anterior
             return dia_habil_anterior(fecha_objetivo)
 
-    # ---------------------------
-    # CASO: Miércoles o Jueves
-    # => Tasa del día hábil anterior
-    # ---------------------------
+    # Miércoles o Jueves -> tasa del día hábil anterior
     return dia_habil_anterior(fecha_objetivo)

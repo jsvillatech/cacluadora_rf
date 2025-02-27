@@ -121,25 +121,39 @@ def calcular_numero_dias_descuento_cupon(
     fecha_negociacion: datetime, lista_fechas_pago_cupon: list[str]
 ):
     """
-    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas.
+    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas,
+    ignorando años bisiestos (29 de febrero).
 
     Parámetros:
-    fecha_negociacion (str): Fecha de negociación en formato 'DD/MM/YYYY'.
+    fecha_negociacion (datetime.date): Fecha de negociación.
     lista_fechas_pago_cupon (list): Lista de fechas en formato 'DD/MM/YYYY'.
 
     Retorna:
-    list[int]: Una lista de tuplas con cada fecha y su diferencia en días con la fecha de negociación.
+    list[int]: Lista con la diferencia en días ignorando los bisiestos.
     """
-    # Convert `fecha_negociacion` from `datetime.date` to `datetime.datetime`
+    # Convertir `fecha_negociacion` a datetime completo
     fecha_negociacion_dt = datetime.combine(fecha_negociacion, datetime.min.time())
-    # Calcular diferencias
-    diferencias = [
-        max(0, (datetime.strptime(fecha, "%d/%m/%Y") - fecha_negociacion_dt).days)
-        for fecha in lista_fechas_pago_cupon
-    ]
-    diferencias[0] = (
-        0  # Se reemplaza un 0 al inicio de la lista porque sería la fecha inicial.
+    fecha_negociacion_365 = (fecha_negociacion_dt.year * 365) + (
+        fecha_negociacion_dt.timetuple().tm_yday
+        - (
+            1
+            if fecha_negociacion_dt.month > 2 and fecha_negociacion_dt.year % 4 == 0
+            else 0
+        )
     )
+
+    diferencias = []
+
+    for fecha in lista_fechas_pago_cupon:
+        fecha_dt = datetime.strptime(fecha, "%d/%m/%Y")
+        fecha_365 = (fecha_dt.year * 365) + (
+            fecha_dt.timetuple().tm_yday
+            - (1 if fecha_dt.month > 2 and fecha_dt.year % 4 == 0 else 0)
+        )
+        diferencias.append(max(0, fecha_365 - fecha_negociacion_365))
+
+    # Ensure the first element is 0
+    diferencias[0] = 0
 
     return diferencias
 
@@ -203,5 +217,62 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     Retorna:
     list: Lista con los valores de los flujos en pesos.
     """
-    flujo_pesos = [CFt / 100 * valor_nominal for CFt in lista_cfs]
+    flujo_pesos = [round(CFt, 3) / 100 * valor_nominal for CFt in lista_cfs]
     return flujo_pesos
+
+
+def convertir_nominal_a_efectiva_anual(tasa_nominal_negociacion: float, periodo: str):
+    """
+    Convierte una tasa nominal a tasa efectiva anual (EA).
+    :param tasa_nominal: Tasa nominal en porcentaje (ej. 18.1 para 18.1%)
+    :param periodo: Periodicidad de la tasa ('mensual', 'trimestral', 'semestral', 'anual')
+    :return: Tasa efectiva anual en porcentaje
+    """
+    periodos_por_año = {
+        "Mensual": 12,
+        "Trimestral": 4,
+        "Semestral": 2,
+        "Anual": 1,  # Si es anual, la tasa nominal ya es efectiva
+    }
+
+    if periodo not in periodos_por_año:
+        raise ValueError(
+            "El periodo debe ser 'mensual', 'trimestral', 'semestral' o 'anual'"
+        )
+
+    n = periodos_por_año[periodo]
+
+    if n == 1:
+        return tasa_nominal_negociacion  # Si es anual, ya es efectiva
+
+    # Convertir tasa nominal a decimal y calcular efectiva anual
+    tasa_efectiva_anual = (1 + (tasa_nominal_negociacion / 100) / n) ** n - 1
+
+    return tasa_efectiva_anual * 100  # Convertir a porcentaje
+
+
+def tir_a_ea(tir: float, periodo: str):
+    """
+    Convierte una TIR en una Tasa Efectiva Anual (EA).
+
+    Parámetros:
+    tir (float): TIR en porcentaje (ejemplo: 1.45 para 1.45%)
+    periodo (str): Periodo de la TIR. Opciones: 'Mensual', 'Trimestral', 'Semestral', 'Anual'
+
+    Retorna:
+    float: Tasa Efectiva Anual en porcentaje
+    """
+    tir_decimal = tir / 100  # Convertir a decimal
+
+    if periodo == "Mensual":
+        ea = (1 + tir_decimal) ** 12 - 1
+    elif periodo == "Trimestral":
+        ea = (1 + tir_decimal) ** 4 - 1
+    elif periodo == "Semestral":
+        ea = (1 + tir_decimal) ** 2 - 1
+    elif periodo == "Anual":
+        ea = (1 + tir_decimal) ** 1 - 1
+    else:
+        raise ValueError("El periodo debe ser 'mensual', 'trimestral' o 'semestral'")
+
+    return ea * 100  # Convertir a porcentaje sin redondear
