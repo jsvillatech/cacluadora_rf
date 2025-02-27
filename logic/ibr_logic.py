@@ -162,7 +162,7 @@ def convertir_tasa_cupon_ibr_online(
             fecha_inicio=fecha_real_ibr, fecha_fin=fecha_real_ibr
         )
 
-        if tasa_ibr_1.empty:
+        if tasa_ibr_real.empty:
             raise ValueError(
                 f"No se encontró la tasa IBR para la fecha: {fecha_real_ibr}."
             )
