@@ -125,6 +125,12 @@ with main_header_col1:
                 format="%0.2f",
             )
             valor_nominal_base_error = st.empty()
+            modalidad_tasa_ipc = st.radio(
+                "**Modalidad IPC**",
+                ["Inicio", "Final"],
+                index=0,
+                horizontal=True,
+            )
 
         # Create three columns and place the button in the middle column
         col_left, col_center, col_right = st.columns([2, 1, 2])

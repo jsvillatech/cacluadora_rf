@@ -88,6 +88,8 @@ def calcular_diferencias_fechas_pago_cupon(
 
     # Convertimos la lista de fechas a objetos datetime
     fechas = [pd.to_datetime(fecha, format="%d/%m/%Y") for fecha in lista_fechas]
+    # Convertimos la fecha de negociación a Timestamp para que sea compatible
+    fecha_negociacion = pd.Timestamp(fecha_negociacion)
 
     diferencias_list = []
 

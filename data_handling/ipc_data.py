@@ -31,6 +31,7 @@ def generar_cashflows_df_ipc(
     fechas_cupon = generar_fechas(
         fecha_inicio=fecha_emision,
         fecha_fin=fecha_vencimiento,
+        fecha_negociacion=fecha_negociacion,
         periodicidad=periodo_cupon,
         modalidad=base_intereses,
     )
