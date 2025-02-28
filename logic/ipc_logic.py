@@ -1,4 +1,3 @@
-import datetime
 import pandas as pd
 from data_handling.shared_data import filtrar_por_fecha
 

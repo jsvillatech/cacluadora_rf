@@ -33,11 +33,14 @@ def generar_cashflows_df_ibr(
     fechas_cupon = generar_fechas(
         fecha_inicio=fecha_emision,
         fecha_fin=fecha_vencimiento,
+        fecha_negociacion=fecha_negociacion,
         periodicidad=periodo_cupon,
         modalidad=base_intereses,
     )
     dias_cupon = calcular_diferencias_fechas_pago_cupon(
-        lista_fechas=fechas_cupon, modalidad=base_intereses
+        lista_fechas=fechas_cupon,
+        fecha_negociacion=fecha_negociacion,
+        modalidad=base_intereses,
     )
     dias_descuento_cupon = calcular_numero_dias_descuento_cupon(
         fecha_negociacion=fecha_negociacion, lista_fechas_pago_cupon=fechas_cupon

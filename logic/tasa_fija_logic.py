@@ -50,7 +50,7 @@ def convertir_tasa_cupon_tf(
             tasa_anual_cupon / periodos_por_anio[periodicidad]
             for _ in dias_pago_entre_cupon
         ]
-        tasas[0] = 0  # se reemplaza 0 porque es el valor de la tasa en el primer cupón
+
         return tasas
 
     else:

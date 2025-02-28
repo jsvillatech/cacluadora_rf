@@ -1,11 +1,15 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 from math import pow
 
 
 def generar_fechas(
-    fecha_inicio: datetime, fecha_fin: datetime, periodicidad: str, modalidad: str
+    fecha_inicio: datetime,
+    fecha_fin: datetime,
+    fecha_negociacion: datetime,
+    periodicidad: str,
+    modalidad: str,
 ):
     """
     Genera una lista de fechas en formato 'DD/MM/YYYY' con base en la periodicidad y modalidad especificadas.
@@ -24,7 +28,9 @@ def generar_fechas(
     fecha_actual = fecha_inicio
 
     while fecha_actual <= fecha_fin:
-        lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
+
+        if fecha_actual > fecha_negociacion:
+            lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
 
         if modalidad == "365/365":
             # Usar meses naturales
@@ -63,7 +69,9 @@ def generar_fechas(
     return lista_fechas
 
 
-def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str], modalidad: str):
+def calcular_diferencias_fechas_pago_cupon(
+    lista_fechas: list[str], fecha_negociacion: datetime.date, modalidad: str
+):
     """
     Calcula la diferencia en días entre fechas consecutivas de una lista de fechas (Pago Cupon)
     usando la convención 30/360 o 365/365.
@@ -81,12 +89,15 @@ def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str], modalidad: s
     # Convertimos la lista de fechas a objetos datetime
     fechas = [pd.to_datetime(fecha, format="%d/%m/%Y") for fecha in lista_fechas]
 
-    diferencias_list = [
-        0
-    ]  # Se agrega un 0 al inicio para coincidir con la cantidad de cupones
+    diferencias_list = []
 
-    for i in range(1, len(fechas)):
-        fecha_anterior = fechas[i - 1]
+    for i in range(0, len(fechas)):
+
+        if i == 0:
+            fecha_anterior = fecha_negociacion
+        else:
+            fecha_anterior = fechas[i - 1]
+
         fecha_actual = fechas[i]
 
         if modalidad == "365/365":
@@ -276,3 +287,57 @@ def tir_a_ea(tir: float, periodo: str):
         raise ValueError("El periodo debe ser 'mensual', 'trimestral' o 'semestral'")
 
     return ea * 100  # Convertir a porcentaje sin redondear
+
+
+def calcular_fecha_anterior(
+    fecha: datetime, periodicidad: str, modalidad: str, num_per: int
+):
+    """
+    Calcula una fecha anterior basada en la periodicidad, modalidad y número de períodos.
+
+    Args:
+        fecha (datetime): Fecha base en formato 'DD/MM/YYYY'.
+        periodicidad (str): Periodicidad ('Mensual', 'Trimestral', 'Semestral', 'Anual').
+        modalidad (str): Modalidad ('30/360' o '365/365').
+        num_per (int): Número de períodos a restar.
+
+    Returns:
+        datetime: Fecha calculada.
+    """
+    fecha_calculada = fecha
+
+    if modalidad == "365/365":
+        # Usar meses naturales
+        if periodicidad == "Mensual":
+            fecha_calculada -= relativedelta(months=num_per)
+        elif periodicidad == "Trimestral":
+            fecha_calculada -= relativedelta(months=3 * num_per)
+        elif periodicidad == "Semestral":
+            fecha_calculada -= relativedelta(months=6 * num_per)
+        elif periodicidad == "Anual":
+            fecha_calculada -= relativedelta(years=num_per)
+        else:
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
+
+    elif modalidad == "30/360":
+        # Ajuste según la convención 30/360
+        dia = min(30, fecha.day)  # Si el día es 31, ajustarlo a 30
+        if periodicidad == "Mensual":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(months=num_per)
+        elif periodicidad == "Trimestral":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(months=3 * num_per)
+        elif periodicidad == "Semestral":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(months=6 * num_per)
+        elif periodicidad == "Anual":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(years=num_per)
+        else:
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
+
+    else:
+        raise ValueError("Modalidad no válida. Usa '30/360' o '365/365'.")
+
+    return fecha_calculada
