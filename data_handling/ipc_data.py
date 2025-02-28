@@ -65,7 +65,7 @@ def generar_cashflows_df_ipc(
     flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)
 
     cashflows = {
-        "Fechas Cupón": fechas_cupon,
+        "Fechas Cupón": nuevas_fechas,
         "Días Cupón": dias_cupon,
         "Días Dcto Cupón": dias_descuento_cupon,
         "CFt": cf_t,
