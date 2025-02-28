@@ -1,5 +1,6 @@
 import pandas as pd
 from logic.ipc_logic import procesar_fechas
+import datetime
 from logic.shared_logic import (
     generar_fechas,
     calcular_diferencias_fechas_pago_cupon,
@@ -9,6 +10,7 @@ from logic.shared_logic import (
     calcular_flujo_pesos,
     convertir_nominal_a_efectiva_anual,
 )
+from data_handling.shared_data import filtrar_por_fecha
 
 
 def generar_cashflows_df_ipc(
@@ -105,7 +107,7 @@ def obtener_tasa_negociacion_EA(
         Tasa efectiva anual (EA) ajustada con el spread de negociación del IBR.
     """
 
-    tasa_ibr_spread_negociacion = sumar_negociacion_ibr(
+    tasa_ibr_spread_negociacion = sumar_negociacion_ipc(
         tasa_negociacion=tasa_mercado,
         fecha_negociacion=fecha_negociacion,
         archivo=archivo_subido,
@@ -115,3 +117,42 @@ def obtener_tasa_negociacion_EA(
     )
 
     return tasa_negociacion_efectiva
+
+
+def sumar_negociacion_ipc(
+    tasa_negociacion: float, fecha_negociacion: datetime.date, archivo=None
+):
+    """
+    Calcula la tasa de negociación IBR sumando la tasa de negociación a la tasa IBR real
+    obtenida desde el Banco de la República o desde un archivo de proyecciones.
+
+    Parámetros:
+        tasa_negociacion (float): La tasa adicional que se suma a la tasa IBR.
+        fecha_negociacion (datetime.date): La fecha de la negociación.
+        archivo (optional): Archivo con datos de proyección. Si es None, se usa data en línea.
+
+    Retorna:
+        pd.Series: Serie con la tasa de negociación IBR si se usa data en línea.
+        None: Si se usa data desde un archivo (pendiente de implementación).
+
+    Excepciones:
+        Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
+    """
+    try:
+
+        tasas_ipc = filtrar_por_fecha(
+            archivo=archivo,
+            nombre_hoja="IPC Estimado",
+            fechas_filtro=[fecha_negociacion],
+        )
+        if tasas_ipc.empty:
+            raise ValueError(
+                "No se encontraron datos de IBR en BanRep para la fecha dada."
+            )
+        # Sumar la tasa de negociación a la tasa IBR
+        tasa_ibr_spread = (tasas_ipc.iloc[0]["IPC estimado"]) * 100 + tasa_negociacion
+
+        return tasa_ibr_spread
+
+    except Exception as e:
+        raise Exception(f"Error al calcular la tasa de negociación IBR: {str(e)}")
