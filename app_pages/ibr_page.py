@@ -142,7 +142,7 @@ with main_header_col2:
             valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
             valor_tasa_negociacion_EA_placeholder = st.empty()
             valor_tasa_negociacion_EA_placeholder.metric(
-                label="Tasa Negociación EA", value="0%"
+                label="Tasa Neg. (IBR+Sprd) EA", value="0%"
             )
 
         with col_results2:
