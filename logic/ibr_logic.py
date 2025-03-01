@@ -284,7 +284,7 @@ def convertir_tasa_cupon_ibr_proyectado(
     fecha_per_anterior = calcular_fecha_anterior(
         fecha=min(fechas_cupones),
         periodicidad=periodicidad,
-        modalidad=base_dias_anio,
+        base_intereses=base_dias_anio,
         num_per=1,
     )
     fecha_per_anterior_real = fecha_publicacion_ibr(fecha_per_anterior)

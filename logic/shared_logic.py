@@ -9,16 +9,16 @@ def generar_fechas(
     fecha_fin: datetime,
     fecha_negociacion: datetime,
     periodicidad: str,
-    modalidad: str,
+    base_intereses: str,
 ):
     """
-    Genera una lista de fechas en formato 'DD/MM/YYYY' con base en la periodicidad y modalidad especificadas.
+    Genera una lista de fechas en formato 'DD/MM/YYYY' con base en la periodicidad y Base Intereses especificadas.
 
     Args:
         fecha_inicio (datetime): Fecha inicial en formato 'DD/MM/YYYY'.
         fecha_fin (datetime): Fecha final en formato 'DD/MM/YYYY'.
         periodicidad (str): Periodicidad de generación de fechas ('Mensual', 'Trimestral', 'Semestral', 'Anual').
-        modalidad (str): Modalidad del cálculo ('30/360' o '365/365' días).
+        base_intereses (str): Base Intereses del cálculo ('30/360' o '365/365' días).
 
     Returns:
         list[str]: Lista de fechas generadas en formato 'DD/MM/YYYY'.
@@ -32,7 +32,7 @@ def generar_fechas(
         if fecha_actual > fecha_negociacion:
             lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
 
-        if modalidad == "365/365":
+        if base_intereses == "365/365":
             # Usar meses naturales
             if periodicidad == "Mensual":
                 fecha_actual += relativedelta(months=1)
@@ -47,7 +47,7 @@ def generar_fechas(
                     "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
                 )
 
-        elif modalidad == "30/360":
+        elif base_intereses == "30/360":
             # Ajuste según la convención 30/360
             dia = min(30, fecha_actual.day)  # Si el día es 31, lo ajustamos a 30
             if periodicidad == "Mensual":
@@ -64,13 +64,13 @@ def generar_fechas(
                 )
 
         else:
-            raise ValueError("Modalidad no válida. Usa '30/360' o '365/365' días.")
+            raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365' días.")
 
     return lista_fechas
 
 
 def calcular_diferencias_fechas_pago_cupon(
-    lista_fechas: list[str], fecha_negociacion: datetime.date, modalidad: str
+    lista_fechas: list[str], periodicidad: str, base_intereses: str
 ):
     """
     Calcula la diferencia en días entre fechas consecutivas de una lista de fechas (Pago Cupon)
@@ -78,7 +78,7 @@ def calcular_diferencias_fechas_pago_cupon(
 
     Args:
         lista_fechas (list[str]): Lista de fechas en formato 'DD/MM/YYYY'.
-        modalidad (str): Modalidad del cálculo ('30/360' o '365/365').
+        base_intereses (str): Base Intereses del cálculo ('30/360' o '365/365').
 
     Returns:
         list[int]: Lista de diferencias en días entre fechas consecutivas.
@@ -88,25 +88,28 @@ def calcular_diferencias_fechas_pago_cupon(
 
     # Convertimos la lista de fechas a objetos datetime
     fechas = [pd.to_datetime(fecha, format="%d/%m/%Y") for fecha in lista_fechas]
-    # Convertimos la fecha de negociación a Timestamp para que sea compatible
-    fecha_negociacion = pd.Timestamp(fecha_negociacion)
 
     diferencias_list = []
 
     for i in range(0, len(fechas)):
 
         if i == 0:
-            fecha_anterior = fecha_negociacion
+            fecha_anterior = calcular_fecha_anterior(
+                fecha=fechas[i],
+                periodicidad=periodicidad,
+                base_intereses=base_intereses,
+                num_per=1,
+            )
         else:
             fecha_anterior = fechas[i - 1]
 
         fecha_actual = fechas[i]
 
-        if modalidad == "365/365":
+        if base_intereses == "365/365":
             # Cálculo exacto de diferencia real en días
             diferencia = (fecha_actual - fecha_anterior).days
 
-        elif modalidad == "30/360":
+        elif base_intereses == "30/360":
             # Extraemos año, mes y día y ajustamos a la convención 30/360
             Y1, M1, D1 = (
                 fecha_anterior.year,
@@ -123,7 +126,7 @@ def calcular_diferencias_fechas_pago_cupon(
             diferencia = (Y2 - Y1) * 360 + (M2 - M1) * 30 + (D2 - D1)
 
         else:
-            raise ValueError("Modalidad no válida. Usa '30/360' o '365/365'.")
+            raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365'.")
 
         diferencias_list.append(diferencia)
 
@@ -164,9 +167,6 @@ def calcular_numero_dias_descuento_cupon(
             - (1 if fecha_dt.month > 2 and fecha_dt.year % 4 == 0 else 0)
         )
         diferencias.append(max(0, fecha_365 - fecha_negociacion_365))
-
-    # Ensure the first element is 0
-    diferencias[0] = 0
 
     return diferencias
 
@@ -292,15 +292,15 @@ def tir_a_ea(tir: float, periodo: str):
 
 
 def calcular_fecha_anterior(
-    fecha: datetime, periodicidad: str, modalidad: str, num_per: int
+    fecha: datetime, periodicidad: str, base_intereses: str, num_per: int
 ):
     """
-    Calcula una fecha anterior basada en la periodicidad, modalidad y número de períodos.
+    Calcula una fecha anterior basada en la periodicidad, Base Intereses y número de períodos.
 
     Args:
         fecha (datetime): Fecha base en formato 'DD/MM/YYYY'.
         periodicidad (str): Periodicidad ('Mensual', 'Trimestral', 'Semestral', 'Anual').
-        modalidad (str): Modalidad ('30/360' o '365/365').
+        base_intereses (str): Base Intereses ('30/360' o '365/365').
         num_per (int): Número de períodos a restar.
 
     Returns:
@@ -308,7 +308,7 @@ def calcular_fecha_anterior(
     """
     fecha_calculada = fecha
 
-    if modalidad == "365/365":
+    if base_intereses == "365/365":
         # Usar meses naturales
         if periodicidad == "Mensual":
             fecha_calculada -= relativedelta(months=num_per)
@@ -323,7 +323,7 @@ def calcular_fecha_anterior(
                 "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
             )
 
-    elif modalidad == "30/360":
+    elif base_intereses == "30/360":
         # Ajuste según la convención 30/360
         dia = min(30, fecha.day)  # Si el día es 31, ajustarlo a 30
         if periodicidad == "Mensual":
@@ -340,6 +340,6 @@ def calcular_fecha_anterior(
             )
 
     else:
-        raise ValueError("Modalidad no válida. Usa '30/360' o '365/365'.")
+        raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365'.")
 
     return fecha_calculada

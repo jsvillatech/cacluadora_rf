@@ -174,12 +174,17 @@ if submitted:
                 "VP CF", format="%.3f%%", help="Valor Presente del Cupón"
             ),
         }
-        st.dataframe(df, column_config=config, use_container_width=True, height=500)
+        st.dataframe(df, column_config=config, use_container_width=True, height=600)
 
         # 🔹 Calculate new metric values
         precio_sucio = df["VP CF"].sum()
         valor_giro = (precio_sucio / 100) * valor_nominal
-        cupon_corrido = cupon_corrido_calc(df=df, date_negociacion=fecha_negociacion)
+        cupon_corrido = cupon_corrido_calc(
+            df=df,
+            date_negociacion=fecha_negociacion,
+            periodicidad=periodo_cupon,
+            base_intereses=base_intereses,
+        )
         precio_limpio = precio_sucio - cupon_corrido
         precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
 
