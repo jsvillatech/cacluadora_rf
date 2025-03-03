@@ -42,9 +42,7 @@ def generar_cashflows_df_ibr(
         base_intereses=base_intereses,
     )
     dias_descuento_cupon = calcular_numero_dias_descuento_cupon(
-        fecha_negociacion=fecha_negociacion,
-        lista_fechas=fechas_cupon,
-        base=base_intereses,
+        fecha_negociacion=fecha_negociacion, lista_fechas=fechas_cupon
     )
     # ⚠️ Handling missing IBR rate
     try:
