@@ -1,6 +1,7 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+import calendar
 from math import pow
 
 
@@ -22,10 +23,11 @@ def generar_fechas(
         if fecha_actual > fecha_negociacion:
             lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
 
-        # Verificar si la fecha es el último día del mes
-        ultimo_dia_mes = (
-            fecha_actual.day == (fecha_actual + relativedelta(days=1)).day - 1
+        # Obtener el último día del mes actual
+        _, ultimo_dia_mes_actual = calendar.monthrange(
+            fecha_actual.year, fecha_actual.month
         )
+        es_ultimo_dia_mes = fecha_actual.day == ultimo_dia_mes_actual
 
         # Calcular la nueva fecha basada en la periodicidad
         if periodicidad == "Mensual":
@@ -41,9 +43,12 @@ def generar_fechas(
                 "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
             )
 
-        # Si la fecha original era el último día del mes, ajustamos la nueva fecha al último día del nuevo mes
-        if ultimo_dia_mes:
-            nueva_fecha = nueva_fecha.replace(day=1) + relativedelta(months=1, days=-1)
+        # Ajustar la nueva fecha si la fecha original era el último día del mes
+        if es_ultimo_dia_mes:
+            _, ultimo_dia_nuevo_mes = calendar.monthrange(
+                nueva_fecha.year, nueva_fecha.month
+            )
+            nueva_fecha = nueva_fecha.replace(day=ultimo_dia_nuevo_mes)
 
         fecha_actual = nueva_fecha
 
@@ -116,8 +121,8 @@ def calcular_diferencias_fechas_pago_cupon(
 
 def calcular_numero_dias_descuento_cupon(fecha_negociacion, lista_fechas):
     """
-    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas,
-    ignorando los años bisiestos para asegurar una consistencia en el cálculo.
+    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas.
+    Si el período incluye un 29 de febrero en un año bisiesto, se resta un día adicional.
 
     :param fecha_negociacion: str, fecha de negociación en formato 'DD/MM/YYYY'
     :param lista_fechas: list, lista de fechas en formato 'DD/MM/YYYY'
@@ -134,14 +139,15 @@ def calcular_numero_dias_descuento_cupon(fecha_negociacion, lista_fechas):
     for fecha_actual in fechas:
         diferencia = (fecha_actual - fecha_negociacion).days
 
-        # Ajuste para ignorar los días bisiestos
-        bisiestos = sum(
-            1
-            for year in range(fecha_negociacion.year, fecha_actual.year + 1)
-            if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
-        )
+        # Verificar si el rango de fechas incluye un 29 de febrero en un año bisiesto
+        for año in range(fecha_negociacion.year, fecha_actual.year + 1):
+            if calendar.isleap(año):  # Verifica si el año es bisiesto
+                fecha_29_febrero = pd.Timestamp(year=año, month=2, day=29)
+                if fecha_negociacion <= fecha_29_febrero <= fecha_actual:
+                    diferencia -= (
+                        1  # Restar un día si el período abarca el 29 de febrero
+                    )
 
-        diferencia -= bisiestos  # Restamos los días bisiestos
         diferencias_list.append(diferencia)
 
     return diferencias_list

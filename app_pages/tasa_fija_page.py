@@ -192,7 +192,6 @@ if submitted:
 
         # 🔹 Calculate new metric values
         precio_sucio = calcular_precio_sucio_desde_VP(df)
-        print(precio_sucio)
         valor_giro = (precio_sucio / 100) * valor_nominal
         cupon_corrido = calcular_cupon_corrido(
             df=df,
