@@ -2,8 +2,6 @@ import pandas as pd
 from datetime import date
 import numpy_financial as npf
 from logic.shared_logic import tir_a_ea, calcular_fecha_anterior
-from decimal import Decimal, ROUND_DOWN
-
 from utils.decimals_helper import truncate
 
 
