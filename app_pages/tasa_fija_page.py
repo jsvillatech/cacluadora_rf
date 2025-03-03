@@ -192,6 +192,7 @@ if submitted:
 
         # 🔹 Calculate new metric values
         precio_sucio = calcular_precio_sucio_desde_VP(df)
+        print(precio_sucio)
         valor_giro = (precio_sucio / 100) * valor_nominal
         cupon_corrido = calcular_cupon_corrido(
             df=df,
@@ -227,7 +228,7 @@ if submitted:
         df_tasa = pd.DataFrame(datos_tasa, index=["Tasa Cupón", "Tasa Mercado"])
 
         # Display the bar chart
-        label_chart_giro_place_holder.write("Giro vs Nominal")
+        label_chart_giro_place_holder.write("Valor Giro vs Nominal")
         result_chart_giro_place_holder.bar_chart(df_giro, horizontal=True)
         label_chart_tasa_place_holder.write("Tasa Mercado vs Cupón")
         result_chart_tasa_place_holder.bar_chart(df_tasa, horizontal=True)

@@ -11,33 +11,41 @@ def generar_fechas(
     periodicidad: str,
 ):
     """
-    Genera una lista de fechas en formato 'DD/MM/YYYY' según la periodicidad indicada.
-    'base_intereses' NO se utiliza para recortar el día a 30, sino solo para
-    distinguir la lógica de salto (si acaso lo quisieras hacer diferente).
+    Genera una lista de fechas en formato 'DD/MM/YYYY' según la periodicidad indicada,
+    asegurando que los meses con 31 días conserven su último día cuando corresponda.
     """
     lista_fechas = []
     fecha_actual = fecha_inicio
 
     while fecha_actual <= fecha_fin:
-
         # Solo agregamos la fecha si es > fecha_negociacion
         if fecha_actual > fecha_negociacion:
             lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
 
-        # Independientemente de 30/360 o 365/365, generamos las fechas "reales".
-        # Usar day=31 fuerza a "fin de mes" si el mes no tiene 31.
+        # Verificar si la fecha es el último día del mes
+        ultimo_dia_mes = (
+            fecha_actual.day == (fecha_actual + relativedelta(days=1)).day - 1
+        )
+
+        # Calcular la nueva fecha basada en la periodicidad
         if periodicidad == "Mensual":
-            fecha_actual += relativedelta(months=1, day=31)
+            nueva_fecha = fecha_actual + relativedelta(months=1)
         elif periodicidad == "Trimestral":
-            fecha_actual += relativedelta(months=3, day=31)
+            nueva_fecha = fecha_actual + relativedelta(months=3)
         elif periodicidad == "Semestral":
-            fecha_actual += relativedelta(months=6, day=31)
+            nueva_fecha = fecha_actual + relativedelta(months=6)
         elif periodicidad == "Anual":
-            fecha_actual += relativedelta(years=1, day=31)
+            nueva_fecha = fecha_actual + relativedelta(years=1)
         else:
             raise ValueError(
                 "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
             )
+
+        # Si la fecha original era el último día del mes, ajustamos la nueva fecha al último día del nuevo mes
+        if ultimo_dia_mes:
+            nueva_fecha = nueva_fecha.replace(day=1) + relativedelta(months=1, days=-1)
+
+        fecha_actual = nueva_fecha
 
     return lista_fechas
 
@@ -106,42 +114,37 @@ def calcular_diferencias_fechas_pago_cupon(
     return diferencias_list
 
 
-def calcular_numero_dias_descuento_cupon(
-    fecha_negociacion: datetime, lista_fechas_pago_cupon: list[str]
-):
+def calcular_numero_dias_descuento_cupon(fecha_negociacion, lista_fechas):
     """
     Calcula la diferencia en días entre una fecha de negociación y una lista de fechas,
-    ignorando años bisiestos (29 de febrero).
+    ignorando los años bisiestos para asegurar una consistencia en el cálculo.
 
-    Parámetros:
-    fecha_negociacion (datetime.date): Fecha de negociación.
-    lista_fechas_pago_cupon (list): Lista de fechas en formato 'DD/MM/YYYY'.
-
-    Retorna:
-    list[int]: Lista con la diferencia en días ignorando los bisiestos.
+    :param fecha_negociacion: str, fecha de negociación en formato 'DD/MM/YYYY'
+    :param lista_fechas: list, lista de fechas en formato 'DD/MM/YYYY'
+    :return: list, diferencias en días para cada fecha de la lista
     """
-    # Convertir `fecha_negociacion` a datetime completo
-    fecha_negociacion_dt = datetime.combine(fecha_negociacion, datetime.min.time())
-    fecha_negociacion_365 = (fecha_negociacion_dt.year * 365) + (
-        fecha_negociacion_dt.timetuple().tm_yday
-        - (
+
+    # Convertimos la fecha de negociación a datetime
+    fecha_negociacion = pd.to_datetime(fecha_negociacion, format="%d/%m/%Y")
+    # Convertimos las fechas de la lista a datetime
+    fechas = [pd.to_datetime(fecha, format="%d/%m/%Y") for fecha in lista_fechas]
+
+    diferencias_list = []
+
+    for fecha_actual in fechas:
+        diferencia = (fecha_actual - fecha_negociacion).days
+
+        # Ajuste para ignorar los días bisiestos
+        bisiestos = sum(
             1
-            if fecha_negociacion_dt.month > 2 and fecha_negociacion_dt.year % 4 == 0
-            else 0
+            for year in range(fecha_negociacion.year, fecha_actual.year + 1)
+            if (year % 4 == 0 and year % 100 != 0) or (year % 400 == 0)
         )
-    )
 
-    diferencias = []
+        diferencia -= bisiestos  # Restamos los días bisiestos
+        diferencias_list.append(diferencia)
 
-    for fecha in lista_fechas_pago_cupon:
-        fecha_dt = datetime.strptime(fecha, "%d/%m/%Y")
-        fecha_365 = (fecha_dt.year * 365) + (
-            fecha_dt.timetuple().tm_yday
-            - (1 if fecha_dt.month > 2 and fecha_dt.year % 4 == 0 else 0)
-        )
-        diferencias.append(max(0, fecha_365 - fecha_negociacion_365))
-
-    return diferencias
+    return diferencias_list
 
 
 def calcular_cupones_futuros_cf(

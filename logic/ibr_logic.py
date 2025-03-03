@@ -156,6 +156,11 @@ def convertir_tasa_cupon_ibr_online(
     if base_dias_anio not in base:
         raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
 
+    # Convertir lista de fechas a objetos datetime
+    fechas_cupones = [
+        datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in lista_fechas
+    ]
+
     ### CASO 1: La fecha de negociación es la misma que la de emisión ###
     if fecha_inicio == fecha_negociacion:
         fecha_real_ibr = fecha_publicacion_ibr(fecha_inicio)
@@ -178,20 +183,26 @@ def convertir_tasa_cupon_ibr_online(
     ### CASO 2: El título se negocia después de su emisión ###
     else:
         tasas = []
-        # Obtener IBR del día anterior a la fecha de emisión para el primer cupón
-        fecha_real_ibr_1 = fecha_publicacion_ibr(fecha_inicio)
-        tasa_ibr_1 = fetch_ibr_data_banrep(
-            fecha_inicio=fecha_real_ibr_1, fecha_fin=fecha_real_ibr_1
+        # Obtener IBR del día anterior a la fecha anterior del cupon proximo a vencer
+        fecha_per_anterior = calcular_fecha_anterior(
+            fecha=min(fechas_cupones),
+            periodicidad=periodicidad,
+            base_intereses=base_dias_anio,
+            num_per=1,
+        )
+        fecha_per_anterior_real = fecha_publicacion_ibr(fecha_per_anterior)
+        ibr_per_anterior_real = fetch_ibr_data_banrep(
+            fecha_inicio=fecha_per_anterior_real, fecha_fin=fecha_per_anterior_real
         )
 
-        if tasa_ibr_1.empty:
+        if ibr_per_anterior_real.empty:
             raise ValueError(
-                f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_1}.
+                f"""No se encontró la tasa IBR para la fecha: {ibr_per_anterior_real}.
                 Por favor usa la opcion de subir un archivo con las tasas proyectadas"""
             )
 
         # Calcular la tasa para el primer cupón
-        tasa_ibr_spread_1 = (tasa_ibr_1.iloc[0, 1] + tasa_anual_cupon) / 100
+        tasa_ibr_spread_1 = (ibr_per_anterior_real.iloc[0, 1] + tasa_anual_cupon) / 100
         tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
 
         # Obtener IBR del día anterior a la fecha de negociación para los siguientes cupones
@@ -205,7 +216,7 @@ def convertir_tasa_cupon_ibr_online(
                 f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_negociacion}.
                 Por favor usa la opcion de subir un archivo con las tasas proyectadss"""
             )
-        for i in range(2, len(lista_fechas)):
+        for i in range(1, len(lista_fechas)):
             tasa_ibr_spread_i = (
                 tasa_ibr_negociacion.iloc[0, 1] + tasa_anual_cupon
             ) / 100

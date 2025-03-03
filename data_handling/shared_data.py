@@ -2,6 +2,9 @@ import pandas as pd
 from datetime import date
 import numpy_financial as npf
 from logic.shared_logic import tir_a_ea, calcular_fecha_anterior
+from decimal import Decimal, ROUND_DOWN
+
+from utils.decimals_helper import truncate
 
 
 def calcular_cupon_corrido(
@@ -121,7 +124,9 @@ def calcular_precio_sucio_desde_VP(df, col_vp="VP CF"):
     # Suma de la columna con los valores presentes de cada flujo
     precio_sucio = df[col_vp].sum()
     # Redondeo a 3 decimales
-    return round(precio_sucio, 3)
+    precio_sucio_trunc = truncate(precio_sucio, decimals=3)
+
+    return precio_sucio_trunc
 
 
 def clasificar_precio_limpio(precio_limpio: float):

@@ -37,7 +37,8 @@ def generar_cashflows_df_tf(
         base_intereses=base_intereses,
     )
     dias_descuento_cupon = calcular_numero_dias_descuento_cupon(
-        fecha_negociacion=fecha_negociacion, lista_fechas_pago_cupon=fechas_cupon
+        fecha_negociacion=fecha_negociacion,
+        lista_fechas=fechas_cupon,
     )
     tasa_convertida = convertir_tasa_cupon_tf(
         modalidad_tasa=modalidad_tasa_cupon,
