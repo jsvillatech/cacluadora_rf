@@ -9,62 +9,35 @@ def generar_fechas(
     fecha_fin: datetime,
     fecha_negociacion: datetime,
     periodicidad: str,
-    base_intereses: str,
 ):
     """
-    Genera una lista de fechas en formato 'DD/MM/YYYY' con base en la periodicidad y Base Intereses especificadas.
-
-    Args:
-        fecha_inicio (datetime): Fecha inicial en formato 'DD/MM/YYYY'.
-        fecha_fin (datetime): Fecha final en formato 'DD/MM/YYYY'.
-        periodicidad (str): Periodicidad de generación de fechas ('Mensual', 'Trimestral', 'Semestral', 'Anual').
-        base_intereses (str): Base Intereses del cálculo ('30/360' o '365/365' días).
-
-    Returns:
-        list[str]: Lista de fechas generadas en formato 'DD/MM/YYYY'.
+    Genera una lista de fechas en formato 'DD/MM/YYYY' según la periodicidad indicada.
+    'base_intereses' NO se utiliza para recortar el día a 30, sino solo para
+    distinguir la lógica de salto (si acaso lo quisieras hacer diferente).
     """
-
     lista_fechas = []
     fecha_actual = fecha_inicio
 
     while fecha_actual <= fecha_fin:
 
+        # Solo agregamos la fecha si es > fecha_negociacion
         if fecha_actual > fecha_negociacion:
             lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
 
-        if base_intereses == "365/365":
-            # Usar meses naturales
-            if periodicidad == "Mensual":
-                fecha_actual += relativedelta(months=1)
-            elif periodicidad == "Trimestral":
-                fecha_actual += relativedelta(months=3)
-            elif periodicidad == "Semestral":
-                fecha_actual += relativedelta(months=6)
-            elif periodicidad == "Anual":
-                fecha_actual += relativedelta(years=1)
-            else:
-                raise ValueError(
-                    "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
-                )
-
-        elif base_intereses == "30/360":
-            # Ajuste según la convención 30/360
-            dia = min(30, fecha_actual.day)  # Si el día es 31, lo ajustamos a 30
-            if periodicidad == "Mensual":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=1)
-            elif periodicidad == "Trimestral":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=3)
-            elif periodicidad == "Semestral":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=6)
-            elif periodicidad == "Anual":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(years=1)
-            else:
-                raise ValueError(
-                    "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
-                )
-
+        # Independientemente de 30/360 o 365/365, generamos las fechas "reales".
+        # Usar day=31 fuerza a "fin de mes" si el mes no tiene 31.
+        if periodicidad == "Mensual":
+            fecha_actual += relativedelta(months=1, day=31)
+        elif periodicidad == "Trimestral":
+            fecha_actual += relativedelta(months=3, day=31)
+        elif periodicidad == "Semestral":
+            fecha_actual += relativedelta(months=6, day=31)
+        elif periodicidad == "Anual":
+            fecha_actual += relativedelta(years=1, day=31)
         else:
-            raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365' días.")
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
 
     return lista_fechas
 
@@ -230,7 +203,7 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     Retorna:
     list: Lista con los valores de los flujos en pesos.
     """
-    flujo_pesos = [round(CFt, 3) / 100 * valor_nominal for CFt in lista_cfs]
+    flujo_pesos = [CFt / 100 * valor_nominal for CFt in lista_cfs]
     return flujo_pesos
 
 

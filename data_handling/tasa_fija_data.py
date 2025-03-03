@@ -30,7 +30,6 @@ def generar_cashflows_df_tf(
         fecha_fin=fecha_vencimiento,
         fecha_negociacion=fecha_negociacion,
         periodicidad=periodo_cupon,
-        base_intereses=base_intereses,
     )
     dias_cupon = calcular_diferencias_fechas_pago_cupon(
         lista_fechas=fechas_cupon,

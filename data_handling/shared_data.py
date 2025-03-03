@@ -4,7 +4,7 @@ import numpy_financial as npf
 from logic.shared_logic import tir_a_ea, calcular_fecha_anterior
 
 
-def cupon_corrido_calc(
+def calcular_cupon_corrido(
     df: pd.DataFrame, date_negociacion: date, periodicidad: str, base_intereses: str
 ):
     """
@@ -57,12 +57,71 @@ def cupon_corrido_calc(
     )
 
     # Calcular el número de días de intereses desde el cupón anterior hasta la fecha de negociación
-    dias_intereses = (target_date - per_anterior).days
+    dias_intereses = day_count(
+        date1=per_anterior, date2=target_date, base=base_intereses
+    )
 
     # Calcular el cupón corrido
     cupon_corrido = (min_cft / min_cupon_dias) * dias_intereses
 
     return cupon_corrido
+
+
+def day_count(date1: pd.Timestamp, date2: pd.Timestamp, base: str):
+    """
+    Retorna el número de días entre date1 y date2 según la base de conteo indicada.
+
+    Parámetros:
+    -----------
+    date1 : pd.Timestamp
+        Fecha inicial (anterior o igual a date2).
+    date2 : pd.Timestamp
+        Fecha final (posterior o igual a date1).
+    base : str
+        Base de conteo de días. Puede ser "30/360" o "365/365".
+
+    Retorna:
+    --------
+    int
+        Número de días entre date1 y date2 conforme a la convención seleccionada.
+    """
+    if base == "30/360":
+        # Usamos la convención 30/360 US (Bond Basis).
+        y1, m1, d1 = date1.year, date1.month, date1.day
+        y2, m2, d2 = date2.year, date2.month, date2.day
+
+        # Ajustes día=31 -> 30 (regla US)
+        if d1 == 31:
+            d1 = 30
+        if d2 == 31 and d1 == 30:
+            d2 = 30
+
+        return (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1)
+
+    elif base == "365/365":
+        # En 365/365, retornamos la diferencia real de días de calendario.
+        return (date2 - date1).days
+
+    else:
+        raise ValueError("Base de conteo no soportada. Use '30/360' o '365/365'.")
+
+
+def calcular_precio_sucio_desde_VP(df, col_vp="VP CF"):
+    """
+    Calcula el precio sucio a partir de la columna que contiene los valores presentes de los flujos.
+
+    Args:
+        df (pandas.DataFrame): DataFrame que contiene la información de los flujos y sus valores presentes.
+        col_vp (str, optional): Nombre de la columna en la que se almacenan los valores presentes de cada flujo.
+                                Por defecto, "VP CF".
+
+    Returns:
+        float: El precio sucio calculado, redondeado a 3 decimales.
+    """
+    # Suma de la columna con los valores presentes de cada flujo
+    precio_sucio = df[col_vp].sum()
+    # Redondeo a 3 decimales
+    return round(precio_sucio, 3)
 
 
 def clasificar_precio_limpio(precio_limpio: float):

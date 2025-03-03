@@ -1,9 +1,13 @@
 import streamlit as st
-from data_handling.shared_data import clasificar_precio_limpio
+from data_handling.shared_data import (
+    calcular_cupon_corrido,
+    calcular_precio_sucio_desde_VP,
+    clasificar_precio_limpio,
+)
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
 from data_handling.tasa_fija_data import generar_cashflows_df_tf
-from data_handling.shared_data import cupon_corrido_calc
+import pandas as pd
 
 
 # start from here
@@ -54,6 +58,7 @@ with main_header_col1:
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
+                format="%.4f",
             )
             tasa_cupon_error = st.empty()
             base_intereses = st.selectbox(
@@ -73,6 +78,7 @@ with main_header_col1:
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
+                format="%.4f",
             )
             tasa_mercado_error = st.empty()
         with header_form_col3:
@@ -118,6 +124,11 @@ with main_header_col2:
             precio_limpio_placeholder = st.empty()
             precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
             precio_limpio_placeholder_venta = st.empty()
+        label_chart_giro_place_holder = st.empty()
+        result_chart_giro_place_holder = st.empty()
+        label_chart_tasa_place_holder = st.empty()
+        result_chart_tasa_place_holder = st.empty()
+
 
 # Container for detailed table
 st.header("Tabla detallada")
@@ -165,21 +176,24 @@ if submitted:
             tasa_mercado=tasa_mercado,
             valor_nominal=valor_nominal,
         )
+        # Inicia index desde 1.
+        df.index = range(1, len(df) + 1)
         # show df
         config = {
             "CFt": st.column_config.NumberColumn(
-                "CFt", format="%.3f%%", help="Cupón Futuro"
+                "CFt", format="%.6f%%", help="Cupón Futuro"
             ),
             "VP CF": st.column_config.NumberColumn(
-                "VP CF", format="%.3f%%", help="Valor Presente del Cupón"
+                "VP CF", format="%.6f%%", help="Valor Presente del Cupón"
             ),
         }
-        st.dataframe(df, column_config=config, use_container_width=True, height=600)
+        # show DF
+        st.dataframe(df, column_config=config, use_container_width=True, height=900)
 
         # 🔹 Calculate new metric values
-        precio_sucio = df["VP CF"].sum()
+        precio_sucio = calcular_precio_sucio_desde_VP(df)
         valor_giro = (precio_sucio / 100) * valor_nominal
-        cupon_corrido = cupon_corrido_calc(
+        cupon_corrido = calcular_cupon_corrido(
             df=df,
             date_negociacion=fecha_negociacion,
             periodicidad=periodo_cupon,
@@ -203,3 +217,17 @@ if submitted:
         precio_limpio_placeholder_venta.markdown(
             precio_limpio_venta.replace("\n", "  \n")
         )
+
+        # Create a DataFrame with the values, using the category names as the index
+        datos_giro = {"Value": [valor_giro, valor_nominal]}
+        df_giro = pd.DataFrame(datos_giro, index=["Valor Giro", "Valor Nominal"])
+
+        # Create a DataFrame with the values, using the category names as the index
+        datos_tasa = {"Value": [tasa_cupon, tasa_mercado]}
+        df_tasa = pd.DataFrame(datos_tasa, index=["Tasa Cupón", "Tasa Mercado"])
+
+        # Display the bar chart
+        label_chart_giro_place_holder.write("Giro vs Nominal")
+        result_chart_giro_place_holder.bar_chart(df_giro, horizontal=True)
+        label_chart_tasa_place_holder.write("Tasa Mercado vs Cupón")
+        result_chart_tasa_place_holder.bar_chart(df_tasa, horizontal=True)
