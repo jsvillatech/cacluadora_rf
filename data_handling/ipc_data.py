@@ -148,7 +148,7 @@ def sumar_negociacion_ipc(
         )
         if tasas_ipc.empty:
             raise ValueError(
-                "No se encontraron datos de IBR en BanRep para la fecha dada."
+                f"No se encontraron datos de IBR en BanRep para la fecha dada {fecha_negociacion}."
             )
         # Sumar la tasa de negociación a la tasa IBR
         tasa_ibr_spread = (tasas_ipc.iloc[0]["IPC estimado"]) * 100 + tasa_negociacion

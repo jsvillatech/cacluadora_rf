@@ -310,7 +310,7 @@ def convertir_tasa_cupon_ibr_proyectado(
         )
 
     # Calcular la tasa para el primer cupón
-    tasa_ibr_spread_1 = ibr_per_anterior_real.iloc[0, 0] + tasa_anual_cupon
+    tasa_ibr_spread_1 = ibr_per_anterior_real.iloc[0, 1] + tasa_anual_cupon
     tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
 
     # Obtener IBR del día anterior a la fecha de negociación para los siguientes cupones
