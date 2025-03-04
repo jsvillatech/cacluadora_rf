@@ -1,9 +1,13 @@
 import streamlit as st
-from data_handling.shared_data import clasificar_precio_limpio
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
 from data_handling.ipc_data import generar_cashflows_df_ipc, obtener_tasa_negociacion_EA
-from data_handling.shared_data import cupon_corrido_calc, calcular_tir_desde_df
+from data_handling.shared_data import (
+    calcular_cupon_corrido,
+    calcular_tir_desde_df,
+    calcular_precio_sucio_desde_VP,
+    clasificar_precio_limpio,
+)
 
 # Initialize session state
 if "uploaded_file" not in st.session_state:
@@ -125,6 +129,12 @@ with main_header_col1:
                 format="%0.2f",
             )
             valor_nominal_base_error = st.empty()
+            modalidad_tasa_ipc = st.radio(
+                "**Modalidad IPC**",
+                ["Inicio", "Final"],
+                index=0,
+                horizontal=True,
+            )
 
         # Create three columns and place the button in the middle column
         col_left, col_center, col_right = st.columns([2, 1, 2])
@@ -232,10 +242,13 @@ if submitted:
                 )
 
                 # Calculate new metric values
-                precio_sucio = df["VP CF"].sum()
-                valor_giro = (round(precio_sucio, 3) / 100) * valor_nominal
-                cupon_corrido = cupon_corrido_calc(
-                    df=df, date_negociacion=fecha_negociacion
+                precio_sucio = calcular_precio_sucio_desde_VP(df)
+                valor_giro = (precio_sucio / 100) * valor_nominal
+                cupon_corrido = calcular_cupon_corrido(
+                    df=df,
+                    date_negociacion=fecha_negociacion,
+                    periodicidad=periodo_cupon,
+                    base_intereses=base_intereses,
                 )
                 precio_limpio = precio_sucio - cupon_corrido
                 precio_limpio_venta = clasificar_precio_limpio(precio_limpio)

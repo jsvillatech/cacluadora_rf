@@ -1,76 +1,70 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+import calendar
 from math import pow
 
 
 def generar_fechas(
-    fecha_inicio: datetime, fecha_fin: datetime, periodicidad: str, modalidad: str
+    fecha_inicio: datetime,
+    fecha_fin: datetime,
+    fecha_negociacion: datetime,
+    periodicidad: str,
 ):
     """
-    Genera una lista de fechas en formato 'DD/MM/YYYY' con base en la periodicidad y modalidad especificadas.
-
-    Args:
-        fecha_inicio (datetime): Fecha inicial en formato 'DD/MM/YYYY'.
-        fecha_fin (datetime): Fecha final en formato 'DD/MM/YYYY'.
-        periodicidad (str): Periodicidad de generación de fechas ('Mensual', 'Trimestral', 'Semestral', 'Anual').
-        modalidad (str): Modalidad del cálculo ('30/360' o '365/365' días).
-
-    Returns:
-        list[str]: Lista de fechas generadas en formato 'DD/MM/YYYY'.
+    Genera una lista de fechas en formato 'DD/MM/YYYY' según la periodicidad indicada,
+    asegurando que los meses con 31 días conserven su último día cuando corresponda.
     """
-
     lista_fechas = []
     fecha_actual = fecha_inicio
 
     while fecha_actual <= fecha_fin:
-        lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
+        # Solo agregamos la fecha si es > fecha_negociacion
+        if fecha_actual > fecha_negociacion:
+            lista_fechas.append(fecha_actual.strftime("%d/%m/%Y"))
 
-        if modalidad == "365/365":
-            # Usar meses naturales
-            if periodicidad == "Mensual":
-                fecha_actual += relativedelta(months=1)
-            elif periodicidad == "Trimestral":
-                fecha_actual += relativedelta(months=3)
-            elif periodicidad == "Semestral":
-                fecha_actual += relativedelta(months=6)
-            elif periodicidad == "Anual":
-                fecha_actual += relativedelta(years=1)
-            else:
-                raise ValueError(
-                    "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
-                )
+        # Obtener el último día del mes actual
+        _, ultimo_dia_mes_actual = calendar.monthrange(
+            fecha_actual.year, fecha_actual.month
+        )
+        es_ultimo_dia_mes = fecha_actual.day == ultimo_dia_mes_actual
 
-        elif modalidad == "30/360":
-            # Ajuste según la convención 30/360
-            dia = min(30, fecha_actual.day)  # Si el día es 31, lo ajustamos a 30
-            if periodicidad == "Mensual":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=1)
-            elif periodicidad == "Trimestral":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=3)
-            elif periodicidad == "Semestral":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(months=6)
-            elif periodicidad == "Anual":
-                fecha_actual = fecha_actual.replace(day=dia) + relativedelta(years=1)
-            else:
-                raise ValueError(
-                    "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
-                )
-
+        # Calcular la nueva fecha basada en la periodicidad
+        if periodicidad == "Mensual":
+            nueva_fecha = fecha_actual + relativedelta(months=1)
+        elif periodicidad == "Trimestral":
+            nueva_fecha = fecha_actual + relativedelta(months=3)
+        elif periodicidad == "Semestral":
+            nueva_fecha = fecha_actual + relativedelta(months=6)
+        elif periodicidad == "Anual":
+            nueva_fecha = fecha_actual + relativedelta(years=1)
         else:
-            raise ValueError("Modalidad no válida. Usa '30/360' o '365/365' días.")
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
+
+        # Ajustar la nueva fecha si la fecha original era el último día del mes
+        if es_ultimo_dia_mes:
+            _, ultimo_dia_nuevo_mes = calendar.monthrange(
+                nueva_fecha.year, nueva_fecha.month
+            )
+            nueva_fecha = nueva_fecha.replace(day=ultimo_dia_nuevo_mes)
+
+        fecha_actual = nueva_fecha
 
     return lista_fechas
 
 
-def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str], modalidad: str):
+def calcular_diferencias_fechas_pago_cupon(
+    lista_fechas: list[str], periodicidad: str, base_intereses: str
+):
     """
     Calcula la diferencia en días entre fechas consecutivas de una lista de fechas (Pago Cupon)
     usando la convención 30/360 o 365/365.
 
     Args:
         lista_fechas (list[str]): Lista de fechas en formato 'DD/MM/YYYY'.
-        modalidad (str): Modalidad del cálculo ('30/360' o '365/365').
+        base_intereses (str): Base Intereses del cálculo ('30/360' o '365/365').
 
     Returns:
         list[int]: Lista de diferencias en días entre fechas consecutivas.
@@ -81,19 +75,27 @@ def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str], modalidad: s
     # Convertimos la lista de fechas a objetos datetime
     fechas = [pd.to_datetime(fecha, format="%d/%m/%Y") for fecha in lista_fechas]
 
-    diferencias_list = [
-        0
-    ]  # Se agrega un 0 al inicio para coincidir con la cantidad de cupones
+    diferencias_list = []
 
-    for i in range(1, len(fechas)):
-        fecha_anterior = fechas[i - 1]
+    for i in range(0, len(fechas)):
+
+        if i == 0:
+            fecha_anterior = calcular_fecha_anterior(
+                fecha=fechas[i],
+                periodicidad=periodicidad,
+                base_intereses=base_intereses,
+                num_per=1,
+            )
+        else:
+            fecha_anterior = fechas[i - 1]
+
         fecha_actual = fechas[i]
 
-        if modalidad == "365/365":
+        if base_intereses == "365/365":
             # Cálculo exacto de diferencia real en días
             diferencia = (fecha_actual - fecha_anterior).days
 
-        elif modalidad == "30/360":
+        elif base_intereses == "30/360":
             # Extraemos año, mes y día y ajustamos a la convención 30/360
             Y1, M1, D1 = (
                 fecha_anterior.year,
@@ -110,52 +112,45 @@ def calcular_diferencias_fechas_pago_cupon(lista_fechas: list[str], modalidad: s
             diferencia = (Y2 - Y1) * 360 + (M2 - M1) * 30 + (D2 - D1)
 
         else:
-            raise ValueError("Modalidad no válida. Usa '30/360' o '365/365'.")
+            raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365'.")
 
         diferencias_list.append(diferencia)
 
     return diferencias_list
 
 
-def calcular_numero_dias_descuento_cupon(
-    fecha_negociacion: datetime, lista_fechas_pago_cupon: list[str]
-):
+def calcular_numero_dias_descuento_cupon(fecha_negociacion, lista_fechas):
     """
-    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas,
-    ignorando años bisiestos (29 de febrero).
+    Calcula la diferencia en días entre una fecha de negociación y una lista de fechas.
+    Si el período incluye un 29 de febrero en un año bisiesto, se resta un día adicional.
 
-    Parámetros:
-    fecha_negociacion (datetime.date): Fecha de negociación.
-    lista_fechas_pago_cupon (list): Lista de fechas en formato 'DD/MM/YYYY'.
-
-    Retorna:
-    list[int]: Lista con la diferencia en días ignorando los bisiestos.
+    :param fecha_negociacion: str, fecha de negociación en formato 'DD/MM/YYYY'
+    :param lista_fechas: list, lista de fechas en formato 'DD/MM/YYYY'
+    :return: list, diferencias en días para cada fecha de la lista
     """
-    # Convertir `fecha_negociacion` a datetime completo
-    fecha_negociacion_dt = datetime.combine(fecha_negociacion, datetime.min.time())
-    fecha_negociacion_365 = (fecha_negociacion_dt.year * 365) + (
-        fecha_negociacion_dt.timetuple().tm_yday
-        - (
-            1
-            if fecha_negociacion_dt.month > 2 and fecha_negociacion_dt.year % 4 == 0
-            else 0
-        )
-    )
 
-    diferencias = []
+    # Convertimos la fecha de negociación a datetime
+    fecha_negociacion = pd.to_datetime(fecha_negociacion, format="%d/%m/%Y")
+    # Convertimos las fechas de la lista a datetime
+    fechas = [pd.to_datetime(fecha, format="%d/%m/%Y") for fecha in lista_fechas]
 
-    for fecha in lista_fechas_pago_cupon:
-        fecha_dt = datetime.strptime(fecha, "%d/%m/%Y")
-        fecha_365 = (fecha_dt.year * 365) + (
-            fecha_dt.timetuple().tm_yday
-            - (1 if fecha_dt.month > 2 and fecha_dt.year % 4 == 0 else 0)
-        )
-        diferencias.append(max(0, fecha_365 - fecha_negociacion_365))
+    diferencias_list = []
 
-    # Ensure the first element is 0
-    diferencias[0] = 0
+    for fecha_actual in fechas:
+        diferencia = (fecha_actual - fecha_negociacion).days
 
-    return diferencias
+        # Verificar si el rango de fechas incluye un 29 de febrero en un año bisiesto
+        for año in range(fecha_negociacion.year, fecha_actual.year + 1):
+            if calendar.isleap(año):  # Verifica si el año es bisiesto
+                fecha_29_febrero = pd.Timestamp(year=año, month=2, day=29)
+                if fecha_negociacion <= fecha_29_febrero <= fecha_actual:
+                    diferencia -= (
+                        1  # Restar un día si el período abarca el 29 de febrero
+                    )
+
+        diferencias_list.append(diferencia)
+
+    return diferencias_list
 
 
 def calcular_cupones_futuros_cf(
@@ -217,7 +212,7 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     Retorna:
     list: Lista con los valores de los flujos en pesos.
     """
-    flujo_pesos = [round(CFt, 3) / 100 * valor_nominal for CFt in lista_cfs]
+    flujo_pesos = [CFt / 100 * valor_nominal for CFt in lista_cfs]
     return flujo_pesos
 
 
@@ -276,3 +271,57 @@ def tir_a_ea(tir: float, periodo: str):
         raise ValueError("El periodo debe ser 'mensual', 'trimestral' o 'semestral'")
 
     return ea * 100  # Convertir a porcentaje sin redondear
+
+
+def calcular_fecha_anterior(
+    fecha: datetime, periodicidad: str, base_intereses: str, num_per: int
+):
+    """
+    Calcula una fecha anterior basada en la periodicidad, Base Intereses y número de períodos.
+
+    Args:
+        fecha (datetime): Fecha base en formato 'DD/MM/YYYY'.
+        periodicidad (str): Periodicidad ('Mensual', 'Trimestral', 'Semestral', 'Anual').
+        base_intereses (str): Base Intereses ('30/360' o '365/365').
+        num_per (int): Número de períodos a restar.
+
+    Returns:
+        datetime: Fecha calculada.
+    """
+    fecha_calculada = fecha
+
+    if base_intereses == "365/365":
+        # Usar meses naturales
+        if periodicidad == "Mensual":
+            fecha_calculada -= relativedelta(months=num_per)
+        elif periodicidad == "Trimestral":
+            fecha_calculada -= relativedelta(months=3 * num_per)
+        elif periodicidad == "Semestral":
+            fecha_calculada -= relativedelta(months=6 * num_per)
+        elif periodicidad == "Anual":
+            fecha_calculada -= relativedelta(years=num_per)
+        else:
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
+
+    elif base_intereses == "30/360":
+        # Ajuste según la convención 30/360
+        dia = min(30, fecha.day)  # Si el día es 31, ajustarlo a 30
+        if periodicidad == "Mensual":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(months=num_per)
+        elif periodicidad == "Trimestral":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(months=3 * num_per)
+        elif periodicidad == "Semestral":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(months=6 * num_per)
+        elif periodicidad == "Anual":
+            fecha_calculada = fecha.replace(day=dia) - relativedelta(years=num_per)
+        else:
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
+
+    else:
+        raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365'.")
+
+    return fecha_calculada

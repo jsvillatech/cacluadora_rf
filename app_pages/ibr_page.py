@@ -1,9 +1,15 @@
 import streamlit as st
-from data_handling.shared_data import clasificar_precio_limpio
+import pandas as pd
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
 from data_handling.ibr_data import generar_cashflows_df_ibr, obtener_tasa_negociacion_EA
-from data_handling.shared_data import cupon_corrido_calc, calcular_tir_desde_df
+from data_handling.shared_data import (
+    calcular_precio_sucio_desde_VP,
+    clasificar_precio_limpio,
+    calcular_cupon_corrido,
+    calcular_tir_desde_df,
+)
+
 
 # Initialize session state
 if "uploaded_file" not in st.session_state:
@@ -83,7 +89,7 @@ with main_header_col1:
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
-                format="%0.3f",
+                format="%0.4f",
             )
             tasa_cupon_error = st.empty()
             base_intereses = st.selectbox(
@@ -103,7 +109,7 @@ with main_header_col1:
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
-                format="%0.3f",
+                format="%0.4f",
             )
             tasa_mercado_error = st.empty()
 
@@ -157,6 +163,10 @@ with main_header_col2:
             precio_limpio_placeholder = st.empty()
             precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
             precio_limpio_placeholder_venta = st.empty()
+        label_chart_giro_place_holder = st.empty()
+        result_chart_giro_place_holder = st.empty()
+        label_chart_tasa_place_holder = st.empty()
+        result_chart_tasa_place_holder = st.empty()
 
 # Container for detailed table
 st.header("Tabla detallada")
@@ -227,14 +237,17 @@ if submitted:
                     ),
                 }
                 st.dataframe(
-                    df, use_container_width=True, height=500, column_config=config
+                    df, use_container_width=True, height=900, column_config=config
                 )
 
                 # Calculate new metric values
-                precio_sucio = df["VP CF"].sum()
-                valor_giro = (round(precio_sucio, 3) / 100) * valor_nominal
-                cupon_corrido = cupon_corrido_calc(
-                    df=df, date_negociacion=fecha_negociacion
+                precio_sucio = calcular_precio_sucio_desde_VP(df)
+                valor_giro = (precio_sucio / 100) * valor_nominal
+                cupon_corrido = calcular_cupon_corrido(
+                    df=df,
+                    date_negociacion=fecha_negociacion,
+                    periodicidad=periodo_cupon,
+                    base_intereses=base_intereses,
                 )
                 precio_limpio = precio_sucio - cupon_corrido
                 precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
@@ -273,3 +286,21 @@ if submitted:
                 valor_TIR_inversion_placeholder.metric(
                     "**TIR Inversión**", f"{valor_TIR_inversion:.3f}%"
                 )
+
+                # Create a DataFrame with the values, using the category names as the index
+                datos_giro = {"Value": [valor_giro, valor_nominal]}
+                df_giro = pd.DataFrame(
+                    datos_giro, index=["Valor Giro", "Valor Nominal"]
+                )
+
+                # Create a DataFrame with the values, using the category names as the index
+                datos_tasa = {"Value": [valor_TIR_negociar, valor_TIR_inversion]}
+                df_tasa = pd.DataFrame(
+                    datos_tasa, index=["Tasa Tasa Neg (EA)", "TIR Inversión"]
+                )
+
+                # Display the bar chart
+                label_chart_giro_place_holder.write("Valor Giro vs Nominal")
+                result_chart_giro_place_holder.bar_chart(df_giro, horizontal=True)
+                label_chart_tasa_place_holder.write("Tasa Mercado vs Cupón")
+                result_chart_tasa_place_holder.bar_chart(df_tasa, horizontal=True)

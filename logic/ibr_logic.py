@@ -3,6 +3,7 @@ import datetime
 import pandas as pd
 import holidays
 from data_handling.shared_data import filtrar_por_fecha
+from logic.shared_logic import calcular_fecha_anterior
 
 co_holidays = holidays.Colombia()  # Festivos en Colombia
 
@@ -155,6 +156,11 @@ def convertir_tasa_cupon_ibr_online(
     if base_dias_anio not in base:
         raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
 
+    # Convertir lista de fechas a objetos datetime
+    fechas_cupones = [
+        datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in lista_fechas
+    ]
+
     ### CASO 1: La fecha de negociación es la misma que la de emisión ###
     if fecha_inicio == fecha_negociacion:
         fecha_real_ibr = fecha_publicacion_ibr(fecha_inicio)
@@ -171,27 +177,32 @@ def convertir_tasa_cupon_ibr_online(
         tasas = [
             tasa_ibr_spread / periodos_por_anio[periodicidad] for _ in lista_fechas
         ]
-        tasas[0] = 0  # El primer cupón tiene tasa 0 por convención
+
         return tasas
 
     ### CASO 2: El título se negocia después de su emisión ###
     else:
         tasas = []
-        # Obtener IBR del día anterior a la fecha de emisión para el primer cupón
-        fecha_real_ibr_1 = fecha_publicacion_ibr(fecha_inicio)
-        tasa_ibr_1 = fetch_ibr_data_banrep(
-            fecha_inicio=fecha_real_ibr_1, fecha_fin=fecha_real_ibr_1
+        # Obtener IBR del día anterior a la fecha anterior del cupon proximo a vencer
+        fecha_per_anterior = calcular_fecha_anterior(
+            fecha=min(fechas_cupones),
+            periodicidad=periodicidad,
+            base_intereses=base_dias_anio,
+            num_per=1,
+        )
+        fecha_per_anterior_real = fecha_publicacion_ibr(fecha_per_anterior)
+        ibr_per_anterior_real = fetch_ibr_data_banrep(
+            fecha_inicio=fecha_per_anterior_real, fecha_fin=fecha_per_anterior_real
         )
 
-        if tasa_ibr_1.empty:
+        if ibr_per_anterior_real.empty:
             raise ValueError(
-                f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_1}.
+                f"""No se encontró la tasa IBR para la fecha: {ibr_per_anterior_real}.
                 Por favor usa la opcion de subir un archivo con las tasas proyectadas"""
             )
 
         # Calcular la tasa para el primer cupón
-        tasa_ibr_spread_1 = (tasa_ibr_1.iloc[0, 1] + tasa_anual_cupon) / 100
-        tasas.append(0)  # Se agrega 0 porque es el valor de la tasa en el primer cupón
+        tasa_ibr_spread_1 = (ibr_per_anterior_real.iloc[0, 1] + tasa_anual_cupon) / 100
         tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
 
         # Obtener IBR del día anterior a la fecha de negociación para los siguientes cupones
@@ -205,7 +216,7 @@ def convertir_tasa_cupon_ibr_online(
                 f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_negociacion}.
                 Por favor usa la opcion de subir un archivo con las tasas proyectadss"""
             )
-        for i in range(2, len(lista_fechas)):
+        for i in range(1, len(lista_fechas)):
             tasa_ibr_spread_i = (
                 tasa_ibr_negociacion.iloc[0, 1] + tasa_anual_cupon
             ) / 100
@@ -239,7 +250,6 @@ def convertir_tasa_cupon_ibr_proyectado(
     list[float]: Lista de tasas convertidas a la periodicidad especificada.
     """
     tasa_anual_cupon = tasa_anual_cupon / 100
-
     base = {"30/360": 360, "365/365": 365}
     periodos_por_anio = {"Mensual": 12, "Trimestral": 4, "Semestral": 2, "Anual": 1}
 
@@ -279,57 +289,45 @@ def convertir_tasa_cupon_ibr_proyectado(
     # Convertir a diccionario asegurando que la estructura es correcta
     tasas_ibr_dict = dict(zip(df_merged.iloc[:, 0].dt.date, df_merged.iloc[:, 1]))
 
-    ### CASO 1: La fecha de negociación es la misma que la de emisión ###
-    if fecha_inicio == fecha_negociacion:
-        fecha_real_ibr = fecha_publicacion_ibr(fecha_inicio)
-        tasa_ibr_real = tasas_ibr_dict.get(fecha_real_ibr, None)
+    # definir tasas
+    tasas = []
+    # Obtener IBR del día anterior a la fecha anterior del cupon proximo a vencer
+    fecha_per_anterior = calcular_fecha_anterior(
+        fecha=min(fechas_cupones),
+        periodicidad=periodicidad,
+        base_intereses=base_dias_anio,
+        num_per=1,
+    )
+    fecha_per_anterior_real = fecha_publicacion_ibr(fecha_per_anterior)
+    ibr_per_anterior_real = filtrar_por_fecha(
+        archivo=archivo,
+        nombre_hoja="IBR Estimada",
+        fechas_filtro=[fecha_per_anterior_real],
+    )
+    if ibr_per_anterior_real.empty:
+        raise ValueError(
+            f"No se encontraron datos IBR en la fecha del periodo anterior ({fecha_per_anterior_real}) del cupon proximo a vencer."
+        )
 
-        if tasa_ibr_real is None or pd.isna(tasa_ibr_real):
+    # Calcular la tasa para el primer cupón
+    tasa_ibr_spread_1 = ibr_per_anterior_real.iloc[0, 1] + tasa_anual_cupon
+    tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
+
+    # Obtener IBR del día anterior a la fecha de negociación para los siguientes cupones
+    for i in range(1, len(lista_fechas)):
+        fecha_real_ibr_i = fechas_reales_ibr[i]
+        tasa_ibr_i = tasas_ibr_dict.get(fecha_real_ibr_i, None)
+
+        if tasa_ibr_i is None or pd.isna(tasa_ibr_i):
             raise ValueError(
-                f"No se encontró la tasa IBR para la fecha: {fecha_real_ibr}."
+                f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_i}.
+                Por favor usa la opcion de subir un archivo con las tasas proyectadss"""
             )
 
-        tasa_ibr_spread = tasa_ibr_real + tasa_anual_cupon
-        tasas = [
-            tasa_ibr_spread / periodos_por_anio[periodicidad] for _ in lista_fechas
-        ]
-        tasas[0] = 0  # El primer cupón tiene tasa 0 por convención
-        return tasas
+        tasa_ibr_spread_i = tasa_ibr_i + tasa_anual_cupon
+        tasas.append(tasa_ibr_spread_i / periodos_por_anio[periodicidad])
 
-    ### CASO 2: El título se negocia después de su emisión ###
-    else:
-        tasas = []
-
-        # Obtener IBR del día anterior a la fecha de emisión para el primer cupón
-        fecha_real_ibr_1 = fecha_publicacion_ibr(fecha_inicio)
-        tasa_ibr_1 = tasas_ibr_dict.get(fecha_real_ibr_1, None)
-
-        if tasa_ibr_1 is None or pd.isna(tasa_ibr_1):
-            raise ValueError(
-                f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_1}.
-                Por favor usa la opcion de subir un archivo con las tasas proyectadas"""
-            )
-
-        # Calcular la tasa para el primer cupón
-        tasa_ibr_spread_1 = tasa_ibr_1 + tasa_anual_cupon
-        tasas.append(0)  # Se agrega 0 porque es el valor de la tasa en el primer cupón
-        tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
-
-        # Obtener IBR del día anterior a la fecha de negociación para los siguientes cupones
-        for i in range(2, len(lista_fechas)):
-            fecha_real_ibr_i = fechas_reales_ibr[i]
-            tasa_ibr_i = tasas_ibr_dict.get(fecha_real_ibr_i, None)
-
-            if tasa_ibr_i is None or pd.isna(tasa_ibr_i):
-                raise ValueError(
-                    f"""No se encontró la tasa IBR para la fecha: {fecha_real_ibr_i}.
-                    Por favor usa la opcion de subir un archivo con las tasas proyectadss"""
-                )
-
-            tasa_ibr_spread_i = tasa_ibr_i + tasa_anual_cupon
-            tasas.append(tasa_ibr_spread_i / periodos_por_anio[periodicidad])
-
-        return tasas
+    return tasas
 
 
 def es_dia_habil_bancario(fecha: datetime.date) -> bool:
