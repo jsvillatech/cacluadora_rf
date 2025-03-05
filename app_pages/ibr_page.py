@@ -232,10 +232,10 @@ if submitted:
                 # show df
                 config = {
                     "CFt": st.column_config.NumberColumn(
-                        "CFt", format="%.3f%%", help="Cupón Futuro"
+                        "CFt", format="%.6f%%", help="Cupón Futuro"
                     ),
                     "VP CF": st.column_config.NumberColumn(
-                        "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
+                        "VP CF", format="%.6f%%", help="Valor Presente del Cupón"
                     ),
                 }
                 st.dataframe(

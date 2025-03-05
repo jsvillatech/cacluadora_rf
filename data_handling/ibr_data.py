@@ -57,19 +57,18 @@ def generar_cashflows_df_ibr(
                 archivo=archivo_subido,
             )
         else:
-            tasa_convertida = procesar_tasa_cupon_ibr_online(
+            tasas_nom, tasas_ibr = procesar_tasa_cupon_ibr_online(
                 base_dias_anio=base_intereses,
                 periodicidad=periodo_cupon,
                 tasa_anual_cupon=tasa_cupon,
                 lista_fechas=fechas_cupon,
-                fecha_inicio=fecha_emision,
-                fecha_negociacion=fecha_negociacion,
+                modalidad=modalidad,
             )
     except ValueError as e:
         return {"error": str(e)}  # Return error message instead of crashing
 
     cf_t = calcular_cupones_futuros_cf(
-        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasa_convertida
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas_nom
     )
 
     # IBR+SPREAD negociacion -> Tasa Negociacion EA
@@ -93,6 +92,7 @@ def generar_cashflows_df_ibr(
         # "t*PV CF": round(t_pv_cf, 8),
         # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
         "Flujo Pesos ($)": flujo_pesos,
+        "Tasas IBR %": tasas_ibr,
     }
 
     # 🔍 Ensure all columns have the same length

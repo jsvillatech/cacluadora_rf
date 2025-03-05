@@ -1,8 +1,10 @@
 import pandas as pd
 from datetime import date
+from datetime import datetime
 import numpy_financial as npf
 from logic.shared_logic import tir_a_ea, calcular_fecha_anterior
 from utils.decimals_helper import truncate
+from pyxirr import xirr
 
 
 def calcular_cupon_corrido(
@@ -232,17 +234,12 @@ def calcular_tir_desde_df(
 
     # Convertir la columna de flujos de caja en una lista
     cash_flows = df[columna_flujos].tolist()
-
     # Agregar la inversión inicial negativa al inicio
     cash_flows.insert(0, -valor_giro)
 
-    # Calcular la TIR
     tir = npf.irr(cash_flows)
 
     # Convertir a EA
-    tir_ea = tir_a_ea(tir=tir, periodo=periodo)
+    tir_ea = tir_a_ea(tir=tir, periodo=periodo) * 100
 
-    # Convertir a porcentaje
-    tir_percentage = tir_ea * 100
-
-    return tir_percentage
+    return tir_ea
