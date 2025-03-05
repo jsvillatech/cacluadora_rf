@@ -1,8 +1,8 @@
 import pandas as pd
 from logic.ibr_logic import (
-    convertir_tasa_cupon_ibr_proyectado,
-    convertir_tasa_cupon_ibr_online,
-    sumar_negociacion_ibr,
+    procesar_tasa_cupon_ibr_proyectado,
+    procesar_tasa_cupon_ibr_online,
+    obtener_tasa_negociacion_EA,
 )
 from logic.shared_logic import (
     generar_fechas,
@@ -11,7 +11,6 @@ from logic.shared_logic import (
     calcular_cupones_futuros_cf,
     calcular_vp_cfs,
     calcular_flujo_pesos,
-    convertir_nominal_a_efectiva_anual,
 )
 
 
@@ -26,6 +25,7 @@ def generar_cashflows_df_ibr(
     tasa_mercado,
     valor_nominal,
     archivo_subido,
+    modalidad,
 ):
     """
     Returns a complete bond cash flow DataFrame.
@@ -47,7 +47,7 @@ def generar_cashflows_df_ibr(
     # ⚠️ Handling missing IBR rate
     try:
         if archivo_subido:
-            tasa_convertida = convertir_tasa_cupon_ibr_proyectado(
+            tasa_convertida = procesar_tasa_cupon_ibr_proyectado(
                 base_dias_anio=base_intereses,
                 periodicidad=periodo_cupon,
                 tasa_anual_cupon=tasa_cupon,
@@ -57,7 +57,7 @@ def generar_cashflows_df_ibr(
                 archivo=archivo_subido,
             )
         else:
-            tasa_convertida = convertir_tasa_cupon_ibr_online(
+            tasa_convertida = procesar_tasa_cupon_ibr_online(
                 base_dias_anio=base_intereses,
                 periodicidad=periodo_cupon,
                 tasa_anual_cupon=tasa_cupon,
@@ -74,7 +74,7 @@ def generar_cashflows_df_ibr(
 
     # IBR+SPREAD negociacion -> Tasa Negociacion EA
     tasa_negociacion_efectiva = obtener_tasa_negociacion_EA(
-        tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon
+        tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon, modalidad
     )
 
     vp_cfs = calcular_vp_cfs(
@@ -101,39 +101,3 @@ def generar_cashflows_df_ibr(
             raise ValueError(f"Column '{key}' has inconsistent length!")
 
     return pd.DataFrame(cashflows)
-
-
-def obtener_tasa_negociacion_EA(
-    tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon
-):
-    """
-    Convierte una tasa nominal mensual a una tasa efectiva anual (EA) considerando
-    el spread de negociación del IBR.
-
-    Parámetros:
-    -----------
-    tasa_mercado : float
-        Tasa nominal del mercado en la fecha de negociación.
-    fecha_negociacion : str o datetime
-        Fecha en la que se realiza la negociación.
-    archivo_subido : str o archivo
-        Archivo con los datos necesarios para calcular el spread de negociación del IBR.
-    periodo_cupon : int
-        Número de períodos del cupón en el año (por ejemplo, 12 si es mensual).
-
-    Retorna:
-    --------
-    float
-        Tasa efectiva anual (EA) ajustada con el spread de negociación del IBR.
-    """
-
-    tasa_ibr_spread_negociacion = sumar_negociacion_ibr(
-        tasa_negociacion=tasa_mercado,
-        fecha_negociacion=fecha_negociacion,
-        archivo=archivo_subido,
-    )
-    tasa_negociacion_efectiva = convertir_nominal_a_efectiva_anual(
-        tasa_nominal_negociacion=tasa_ibr_spread_negociacion, periodo=periodo_cupon
-    )
-
-    return tasa_negociacion_efectiva

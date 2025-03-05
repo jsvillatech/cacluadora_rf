@@ -3,7 +3,11 @@ import datetime
 import pandas as pd
 import holidays
 from data_handling.shared_data import filtrar_por_fecha
-from logic.shared_logic import calcular_fecha_anterior
+from logic.shared_logic import (
+    calcular_fecha_anterior,
+    sumar_tasas,
+    convertir_tasa_nominal_a_efectiva_anual,
+)
 
 co_holidays = holidays.Colombia()  # Festivos en Colombia
 
@@ -55,71 +59,175 @@ def fetch_ibr_data_banrep(fecha_inicio: datetime.date, fecha_fin: datetime.date)
         raise Exception("Sorry, something went wrong, try again later")
 
 
-def sumar_negociacion_ibr(
-    tasa_negociacion: float, fecha_negociacion: datetime.date, archivo=None
+def obtener_tasa_ibr_real(fecha_negociacion: datetime.date, archivo):
+    """
+    Procesa una única fecha llamando a `filtrar_por_fecha` si hay un archivo,
+    o `fetch_ibr_data_banrep` si no lo hay.
+
+    :param fecha_negociacion: str, fecha en formato 'DD/MM/YYYY'.
+    :param archivo: str (opcional), ruta del archivo si los datos vienen de ahí.
+    :return: float, valor de la tasa IBR si existen datos; de lo contrario, lanza una excepción.
+    """
+    ibr_fecha_real = fecha_publicacion_ibr(fecha_negociacion)
+
+    if archivo:
+        df = filtrar_por_fecha(archivo, "IBR Estimada", [ibr_fecha_real])
+    else:
+        df = fetch_ibr_data_banrep(ibr_fecha_real, ibr_fecha_real)
+
+    if df.empty:
+        raise ValueError(f"No existen datos para la fecha {ibr_fecha_real}")
+
+    return df.iloc[0, 1]  # Retorna el valor numérico de la tasa IBR
+
+
+def obtener_tasa_ibr_real_batch(lista_fechas: list[datetime.date], archivo):
+    """
+    Procesa una lista de fechas llamando a `filtrar_por_fecha` si hay un archivo,
+    o `fetch_ibr_data_banrep` si no lo hay.
+
+    :param lista_fechas: list, lista de fechas en formato 'DD/MM/YYYY'.
+    :param archivo: str (opcional), ruta del archivo si los datos vienen de ahí.
+    :return: list, valores de la tasa IBR si existen datos; de lo contrario, lanza una excepción.
+    """
+    ibr_fechas_reales = [fecha_publicacion_ibr(fecha) for fecha in lista_fechas]
+
+    if archivo:
+        df = filtrar_por_fecha(archivo, "IBR Estimada", ibr_fechas_reales)
+    else:
+        df = fetch_ibr_data_banrep(min(ibr_fechas_reales), max(ibr_fechas_reales))
+
+    if df.empty:
+        raise ValueError(f"No existen datos para las fechas {ibr_fechas_reales}")
+
+    return df.iloc[:, 1].tolist()  # Retorna una lista con los valores de la tasa IBR
+
+
+def obtener_tasa_negociacion_EA(
+    tasa_mercado: float,
+    fecha_negociacion: datetime.date,
+    archivo_subido,
+    periodo_cupon: str,
+    modalidad: str,
 ):
     """
-    Calcula la tasa de negociación IBR sumando la tasa de negociación a la tasa IBR real
+    Convierte una tasa nominal mensual a una tasa efectiva anual (EA) considerando
+    el spread de negociación del IBR.
+
+    Parámetros:
+    -----------
+    tasa_mercado : float
+        Tasa nominal del mercado en la fecha de negociación.
+    fecha_negociacion : str o datetime
+        Fecha en la que se realiza la negociación.
+    archivo_subido : str o archivo
+        Archivo con los datos necesarios para calcular el spread de negociación del IBR.
+    periodo_cupon : str
+        Períodos del cupón en el año (por ejemplo, 'Mesual','Trimestral', 'Semestral').
+    modalidad: str
+        "Nominal" o "EA" para indicar el tipo de tasa.
+
+    Retorna:
+    --------
+    float
+        Tasa efectiva anual (EA) ajustada con el spread de negociación del IBR.
+    """
+
+    tasa_ibr_spread_negociacion = sumar_spread_ibr(
+        tasa_spread=tasa_mercado,
+        fecha_negociacion=fecha_negociacion,
+        modalidad=modalidad,
+        archivo=archivo_subido,
+    )
+    tasa_negociacion_efectiva = convertir_tasa_nominal_a_efectiva_anual(
+        tasa_nominal_negociacion=tasa_ibr_spread_negociacion, periodo=periodo_cupon
+    )
+
+    return tasa_negociacion_efectiva
+
+
+def sumar_spread_ibr(
+    tasa_spread: float,
+    fecha_negociacion: datetime.date,
+    modalidad: str,
+    archivo=None,
+):
+    """
+    Calcula la tasa total IBR sumando la tasa spread a la tasa IBR real
     obtenida desde el Banco de la República o desde un archivo de proyecciones.
 
     Parámetros:
-        tasa_negociacion (float): La tasa adicional que se suma a la tasa IBR.
+        tasa_spread (float): La tasa adicional que se suma a la tasa IBR.
         fecha_negociacion (datetime.date): La fecha de la negociación.
         archivo (optional): Archivo con datos de proyección. Si es None, se usa data en línea.
+        modalidad: str, "Nominal" o "EA" para indicar el tipo de tasa.
 
     Retorna:
-        pd.Series: Serie con la tasa de negociación IBR si se usa data en línea.
-        None: Si se usa data desde un archivo (pendiente de implementación).
+        float: la tasa IBR completa (spread+IBR)
 
     Excepciones:
         Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
     """
     try:
-        # Para data en línea
-        if archivo is None:
-            ibr_fecha_real = fecha_publicacion_ibr(
-                fecha_negociacion
-            )  # Se obtiene la fecha real del IBR
-            ibr_tasa_real = fetch_ibr_data_banrep(
-                fecha_inicio=ibr_fecha_real, fecha_fin=ibr_fecha_real
-            )
+        tasa_ibr_real = obtener_tasa_ibr_real(
+            fecha_negociacion=fecha_negociacion, archivo=archivo
+        )
 
-            if ibr_tasa_real.empty:
-                raise ValueError(
-                    "No se encontraron datos de IBR en BanRep para la fecha dada."
-                )
+        # Sumar la tasa de negociación a la tasa IBR real
+        tasa_ibr_spread = sumar_tasas(
+            tasa1=tasa_ibr_real, tasa2=tasa_spread, modalidad=modalidad
+        )
 
-            # Sumar la tasa de negociación a la tasa IBR
-            tasa_ibr_spread = (
-                ibr_tasa_real.iloc[0]["Tasa_ibr_mes_nominal"] + tasa_negociacion
-            )
-            return tasa_ibr_spread
-
-        # Para data subida (proyecciones)
-        else:
-            # Obtener tasas IBR en batch
-            ibr_fecha_real = fecha_publicacion_ibr(fecha_negociacion)
-            tasas_ibr = filtrar_por_fecha(
-                archivo=archivo,
-                nombre_hoja="IBR Estimada",
-                fechas_filtro=[ibr_fecha_real],
-            )
-            if tasas_ibr.empty:
-                raise ValueError(
-                    "No se encontraron datos de IBR en BanRep para la fecha dada."
-                )
-            # Sumar la tasa de negociación a la tasa IBR
-            tasa_ibr_spread = (
-                tasas_ibr.iloc[0]["IBR Estimada"]
-            ) * 100 + tasa_negociacion
-
-            return tasa_ibr_spread
+        return tasa_ibr_spread
 
     except Exception as e:
         raise Exception(f"Error al calcular la tasa de negociación IBR: {str(e)}")
 
 
-def convertir_tasa_cupon_ibr_online(
+def sumar_spread_ibr_batch(
+    tasa_spread: float,
+    lista_fechas: list[str],
+    modalidad: str,
+    archivo=None,
+):
+    """
+    Calcula la tasa total IBR sumando la tasa spread a la tasa IBR real
+    obtenida desde el Banco de la República o desde un archivo de proyecciones.
+
+    Parámetros:
+        tasa_spread (float): La tasa adicional que se suma a la tasa IBR.
+        lista_fechas (list[str]): La fecha de la negociación.
+        archivo (optional): Archivo con datos de proyección. Si es None, se usa data en línea.
+        modalidad: str, "Nominal" o "EA" para indicar el tipo de tasa.
+
+    Retorna:
+        list[float]: la tasa IBR completa (spread+IBR)
+
+    Excepciones:
+        Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
+    """
+    try:
+        # Convertir lista de fechas a objetos datetime
+        fechas_cupones = [
+            datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in lista_fechas
+        ]
+        tasa_ibr_real = obtener_tasa_ibr_real_batch(
+            fecha_negociacion=fechas_cupones, archivo=archivo
+        )
+
+        # Sumar la tasa de negociación a la tasa IBR real
+        tasa_ibr_spread = [
+            sumar_tasas(tasa1=ibr, tasa2=tasa_spread, modalidad=modalidad)
+            for ibr in tasa_ibr_real
+        ]
+
+        return tasa_ibr_spread
+
+    except Exception as e:
+        raise Exception(f"Error al calcular la tasa de negociación IBR: {str(e)}")
+
+
+def procesar_tasa_cupon_ibr_online(
     base_dias_anio: str,
     periodicidad: str,
     tasa_anual_cupon: float,
@@ -128,7 +236,7 @@ def convertir_tasa_cupon_ibr_online(
     fecha_negociacion: datetime.date,
 ):
     """
-    Convierte una tasa nominal anual a una nominal en otra periodicidad. Método online.
+    Procesa una tasa Spread Cupon. Método online.
 
     Parámetros:
     base_dias_anio (str): Base de cálculo de días ('30/360' o '365/365').
@@ -225,7 +333,7 @@ def convertir_tasa_cupon_ibr_online(
         return tasas
 
 
-def convertir_tasa_cupon_ibr_proyectado(
+def procesar_tasa_cupon_ibr_proyectado(
     base_dias_anio: str,
     periodicidad: str,
     tasa_anual_cupon: float,

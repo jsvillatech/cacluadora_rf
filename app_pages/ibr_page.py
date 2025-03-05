@@ -188,6 +188,7 @@ if submitted:
             fecha_negociacion,
             tasa_mercado,
             valor_nominal_base,
+            radio_data,
         )
 
         error_placeholders = {
@@ -223,6 +224,7 @@ if submitted:
                 tasa_mercado=tasa_mercado,
                 valor_nominal=valor_nominal,
                 archivo_subido=uploaded_file,
+                modalidad=modalidad_tasa_cupon,
             )
             if isinstance(df, dict) and "error" in df:
                 df_errors_placeholder.error(df["error"])
@@ -256,6 +258,7 @@ if submitted:
                     fecha_negociacion=fecha_negociacion,
                     archivo_subido=uploaded_file,
                     periodo_cupon=periodo_cupon,
+                    modalidad=modalidad_tasa_cupon,
                 )
                 valor_TIR_inversion = calcular_tir_desde_df(
                     df=df,

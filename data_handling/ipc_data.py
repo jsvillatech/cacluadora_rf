@@ -8,7 +8,7 @@ from logic.shared_logic import (
     calcular_cupones_futuros_cf,
     calcular_vp_cfs,
     calcular_flujo_pesos,
-    convertir_nominal_a_efectiva_anual,
+    convertir_tasa_nominal_a_efectiva_anual,
 )
 from data_handling.shared_data import filtrar_por_fecha
 
@@ -24,6 +24,7 @@ def generar_cashflows_df_ipc(
     tasa_mercado,
     valor_nominal,
     archivo_subido,
+    modalidad_tasa_ipc,
 ):
     """
     Returns a complete bond cash flow DataFrame.
@@ -35,22 +36,27 @@ def generar_cashflows_df_ipc(
         periodicidad=periodo_cupon,
         modalidad=base_intereses,
     )
-    nuevas_fechas, rates = procesar_fechas(
-        lista_fechas=fechas_cupon,
-        fecha_neg=fecha_negociacion,
-        archivo=archivo_subido,
-        spread=tasa_cupon,
-        periodicidad=periodo_cupon,
-    )
     dias_cupon = calcular_diferencias_fechas_pago_cupon(
-        lista_fechas=nuevas_fechas, modalidad=base_intereses
+        lista_fechas=fechas_cupon, modalidad=base_intereses
     )
     dias_descuento_cupon = calcular_numero_dias_descuento_cupon(
-        fecha_negociacion=fecha_negociacion, lista_fechas_pago_cupon=nuevas_fechas
+        fecha_negociacion=fecha_negociacion, lista_fechas_pago_cupon=fechas_cupon
     )
 
+    try:
+        tasas_cupon = procesar_fechas(
+            lista_fechas=fechas_cupon,
+            fecha_neg=fecha_negociacion,
+            archivo=archivo_subido,
+            spread=tasa_cupon,
+            periodicidad=periodo_cupon,
+            modalidad_tasa_ipc=modalidad_tasa_ipc,
+        )
+    except ValueError as e:
+        return {"error": str(e)}  # Return error message instead of crashing
+
     cf_t = calcular_cupones_futuros_cf(
-        valor_nominal_base=valor_nominal_base, tasas_periodicas=rates
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas_cupon
     )
 
     # IBR+SPREAD negociacion -> Tasa Negociacion EA
@@ -66,7 +72,7 @@ def generar_cashflows_df_ipc(
     flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)
 
     cashflows = {
-        "Fechas Cupón": nuevas_fechas,
+        "Fechas Cupón": fechas_cupon,
         "Días Cupón": dias_cupon,
         "Días Dcto Cupón": dias_descuento_cupon,
         "CFt": cf_t,
@@ -113,7 +119,7 @@ def obtener_tasa_negociacion_EA(
         fecha_negociacion=fecha_negociacion,
         archivo=archivo_subido,
     )
-    tasa_negociacion_efectiva = convertir_nominal_a_efectiva_anual(
+    tasa_negociacion_efectiva = convertir_tasa_nominal_a_efectiva_anual(
         tasa_nominal_negociacion=tasa_ibr_spread_negociacion, periodo=periodo_cupon
     )
 

@@ -216,7 +216,9 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     return flujo_pesos
 
 
-def convertir_nominal_a_efectiva_anual(tasa_nominal_negociacion: float, periodo: str):
+def convertir_tasa_nominal_a_efectiva_anual(
+    tasa_nominal_negociacion: float, periodo: str
+):
     """
     Convierte una tasa nominal a tasa efectiva anual (EA).
     :param tasa_nominal: Tasa nominal en porcentaje (ej. 18.1 para 18.1%)
@@ -325,3 +327,28 @@ def calcular_fecha_anterior(
         raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365'.")
 
     return fecha_calculada
+
+
+def sumar_tasas(tasa1: float, tasa2: float, modalidad: str):
+    """
+    Suma dos tasas de interés considerando su modalidad (nominal o efectiva).
+
+    :param tasa1: float, primera tasa de interés en formato decimal (ejemplo: 0.05 para 5%).
+    :param tasa2: float, segunda tasa de interés en formato decimal.
+    :param modalidad: str, "Nominal" o "EA" para indicar el tipo de tasa.
+    :param periodos: int, número de períodos de capitalización en un año (solo para tasas nominales).
+    :return: float, tasa total sumada en el mismo formato de entrada.
+
+    - Si la modalidad es "efectiva", se usa la fórmula de suma de tasas efectivas.
+    - Si la modalidad es "nominal", se suman directamente, asumiendo que tienen la misma periodicidad.
+    """
+    if modalidad == "EA":
+        tasa_total = (1 + tasa1) * (1 + tasa2) - 1
+    elif modalidad == "Nominal":
+        tasa_total = (
+            tasa1 + tasa2
+        )  # Simplemente se suman si ambas son nominales con la misma periodicidad
+    else:
+        raise ValueError("Modalidad no válida. Usa 'nominal' o 'efectiva'.")
+
+    return tasa_total

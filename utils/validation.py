@@ -1,3 +1,6 @@
+from datetime import date
+
+
 # validate form function
 def validate_inputs(
     valor_nominal,
@@ -9,6 +12,7 @@ def validate_inputs(
     fecha_negociacion,
     tasa_mercado,
     valor_nominal_base,
+    radio_data,
 ):
     """Validates form inputs and returns a dictionary of errors."""
     errors = {}
@@ -31,6 +35,9 @@ def validate_inputs(
         if not locals()[field]:  # Obtiene el valor de la variable por su nombre
             errors[field] = error_message
 
+    # Obtener la fecha actual
+    today = date.today()
+
     # Validación de fechas
     if fecha_emision and fecha_vencimiento and fecha_emision >= fecha_vencimiento:
         errors["fecha_emision"] = (
@@ -42,5 +49,19 @@ def validate_inputs(
             errors["fecha_negociacion"] = (
                 "❌ La fecha de negociación debe ser mayor a la fecha de emisión y menor a la fecha de vencimiento."
             )
+
+    # Nueva validación: fecha de emisión debe ser menor o igual a hoy
+    if fecha_emision and fecha_emision > today:
+        errors["fecha_emision"] = (
+            "❌ La fecha de emisión no puede estar en el futuro para transacciones online."
+        )
+    if fecha_negociacion and fecha_negociacion > today and radio_data == "Online":
+        errors["fecha_negociacion"] = (
+            "❌ La fecha de negociación no puede estar en el futuro para transacciones online."
+        )
+    if fecha_vencimiento and fecha_vencimiento > today and radio_data == "Online":
+        errors["fecha_vencimiento"] = (
+            "❌ La fecha de Vencimiento no puede estar en el futuro para transacciones online."
+        )
 
     return errors

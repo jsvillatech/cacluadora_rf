@@ -116,7 +116,7 @@ with main_header_col1:
             modalidad_tasa_cupon = st.radio(
                 "**Modalidad Tasa Cupón**",
                 ["EA", "Nominal"],
-                index=1,
+                index=0,
                 horizontal=True,
                 disabled=True,
             )
@@ -224,6 +224,7 @@ if submitted:
                 tasa_mercado=tasa_mercado,
                 valor_nominal=valor_nominal,
                 archivo_subido=uploaded_file,
+                modalidad_tasa_ipc=modalidad_tasa_ipc,
             )
             if isinstance(df, dict) and "error" in df:
                 df_errors_placeholder.error(df["error"])
