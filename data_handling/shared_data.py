@@ -221,7 +221,10 @@ def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
 
 
 def calcular_tir_desde_df(
-    df: pd.DataFrame, columna_flujos: str, valor_giro: float, periodo: str
+    df: pd.DataFrame,
+    columna_flujos: str,
+    valor_giro: float,
+    fecha_negociacion: datetime.date,
 ):
     """
     Calcula la Tasa Interna de Retorno (TIR) a partir de un DataFrame con flujos de efectivo.
@@ -229,14 +232,14 @@ def calcular_tir_desde_df(
     :param df: DataFrame de pandas con los datos de flujo de efectivo.
     :param columna_flujos: Nombre de la columna que contiene los flujos de caja.
     :param valor_giro: Valor nominal inicial de la inversión (debe ser negativo).
-    :param periodo: Periodo de la TIR. Opciones: 'Mensual', 'Trimestral', 'Semestral', 'Anual'
+    :param fecha_negociacion: Fecha de negociacion.
     :return: TIR en porcentaje.
     """
 
-    fechas = df["Fechas Cupón"].astype(str).tolist()
+    fechas = df["Fechas Cupón"].dt.strftime("%d/%m/%Y").tolist()
     # agregar fecha de negociacion
-    fechas.insert(0, "2023-02-20")
-    fechas_cupones = [datetime.datetime.strptime(f, "%Y-%m-%d").date() for f in fechas]
+    fechas.insert(0, fecha_negociacion.strftime("%d/%m/%Y"))
+    fechas_cupones = [datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in fechas]
 
     # Convertir la columna de flujos de caja en una lista
     cash_flows = df[columna_flujos].tolist()

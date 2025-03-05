@@ -4,6 +4,7 @@ import streamlit as st
 from data_handling.shared_data import (
     calcular_cupon_corrido,
     calcular_precio_sucio_desde_VP,
+    calcular_tir_desde_df,
     clasificar_precio_limpio,
 )
 from data_handling.tasa_fija_data import generar_cashflows_df_tf
@@ -113,6 +114,8 @@ with main_header_col2:
             precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
             valor_nominal_placeholder = st.empty()
             valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
+            valor_TIR_inversion_placeholder = st.empty()
+            valor_TIR_inversion_placeholder.metric(label="TIR Inversión", value="0%")
 
         with col_results2:
             cupon_corrido_placeholder = st.empty()
@@ -199,6 +202,12 @@ if submitted:
         )
         precio_limpio = precio_sucio - cupon_corrido
         precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
+        valor_TIR_inversion = calcular_tir_desde_df(
+            df=df,
+            columna_flujos="Flujo Pesos ($)",
+            valor_giro=valor_giro,
+            fecha_negociacion=fecha_negociacion,
+        )
 
         # 🔹 Update metrics dynamically using `st.empty()`
         precio_sucio_placeholder.metric(
@@ -214,6 +223,9 @@ if submitted:
         )
         precio_limpio_placeholder_venta.markdown(
             precio_limpio_venta.replace("\n", "  \n")
+        )
+        valor_TIR_inversion_placeholder.metric(
+            "**TIR Inversión**", f"{valor_TIR_inversion:.3f}%"
         )
 
         # Create a DataFrame with the values, using the category names as the index

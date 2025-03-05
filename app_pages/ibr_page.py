@@ -264,7 +264,7 @@ if submitted:
                     df=df,
                     columna_flujos="Flujo Pesos ($)",
                     valor_giro=valor_giro,
-                    periodo=periodo_cupon,
+                    fecha_negociacion=fecha_negociacion,
                 )
                 # Update metrics dynamically
                 precio_sucio_placeholder.metric(
