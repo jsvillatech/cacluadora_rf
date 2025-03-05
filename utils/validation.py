@@ -12,7 +12,7 @@ def validate_inputs(
     fecha_negociacion,
     tasa_mercado,
     valor_nominal_base,
-    radio_data,
+    radio_data=None,
 ):
     """Validates form inputs and returns a dictionary of errors."""
     errors = {}
