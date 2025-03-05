@@ -1,10 +1,8 @@
 import pandas as pd
 from datetime import date
-from datetime import datetime
 import numpy_financial as npf
 from logic.shared_logic import tir_a_ea, calcular_fecha_anterior
 from utils.decimals_helper import truncate
-from pyxirr import xirr
 
 
 def calcular_cupon_corrido(
