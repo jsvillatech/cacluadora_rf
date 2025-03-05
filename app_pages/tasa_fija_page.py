@@ -1,21 +1,20 @@
+import pandas as pd
 import streamlit as st
+
 from data_handling.shared_data import (
     calcular_cupon_corrido,
     calcular_precio_sucio_desde_VP,
     clasificar_precio_limpio,
 )
+from data_handling.tasa_fija_data import generar_cashflows_df_tf
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.tasa_fija_data import generar_cashflows_df_tf
-import pandas as pd
-
 
 # start from here
 st.title("Calculadora Tasa Fija")
 st.divider()
 main_header_col1, main_header_col2 = st.columns(2)
 with main_header_col1:
-
     with st.form("bond_form"):
         st.subheader("**Condiciones Faciales**")
         header_form_col1, header_form_col2, header_form_col3 = st.columns(3)
@@ -163,7 +162,6 @@ if submitted:
         display_errors(errors, error_placeholders)
 
     else:
-
         df = generar_cashflows_df_tf(
             fecha_emision=fecha_emision,
             fecha_vencimiento=fecha_vencimiento,

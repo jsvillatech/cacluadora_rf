@@ -1,9 +1,10 @@
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
-import pandas as pd
 import calendar
-import numpy as np
+from datetime import datetime
 from math import pow
+
+import numpy as np
+import pandas as pd
+from dateutil.relativedelta import relativedelta
 
 
 def generar_fechas(
@@ -79,7 +80,6 @@ def calcular_diferencias_fechas_pago_cupon(
     diferencias_list = []
 
     for i in range(0, len(fechas)):
-
         if i == 0:
             fecha_anterior = calcular_fecha_anterior(
                 fecha=fechas[i],
@@ -247,33 +247,6 @@ def convertir_tasa_nominal_a_efectiva_anual(
     tasa_efectiva_anual = (1 + (tasa_nominal_negociacion / 100) / n) ** n - 1
 
     return tasa_efectiva_anual * 100  # Convertir a porcentaje
-
-
-def tir_a_ea(tir: float, periodo: str):
-    """
-    Convierte una TIR en una Tasa Efectiva Anual (EA).
-
-    Parámetros:
-    tir (float): TIR en porcentaje (ejemplo: 1.45 para 1.45%)
-    periodo (str): Periodo de la TIR. Opciones: 'Mensual', 'Trimestral', 'Semestral', 'Anual'
-
-    Retorna:
-    float: Tasa Efectiva Anual en porcentaje
-    """
-    tir_decimal = tir / 100  # Convertir a decimal
-
-    if periodo == "Mensual":
-        ea = (1 + tir_decimal) ** 12 - 1
-    elif periodo == "Trimestral":
-        ea = (1 + tir_decimal) ** 4 - 1
-    elif periodo == "Semestral":
-        ea = (1 + tir_decimal) ** 2 - 1
-    elif periodo == "Anual":
-        ea = (1 + tir_decimal) ** 1 - 1
-    else:
-        raise ValueError("El periodo debe ser 'mensual', 'trimestral' o 'semestral'")
-
-    return ea * 100  # Convertir a porcentaje sin redondear
 
 
 def calcular_fecha_anterior(

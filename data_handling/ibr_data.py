@@ -1,16 +1,17 @@
 import pandas as pd
+
 from logic.ibr_logic import (
-    procesar_tasa_cupon_ibr_proyectado,
-    procesar_tasa_cupon_ibr_online,
     obtener_tasa_negociacion_EA,
+    procesar_tasa_cupon_ibr_online,
+    procesar_tasa_cupon_ibr_proyectado,
 )
 from logic.shared_logic import (
-    generar_fechas,
-    calcular_diferencias_fechas_pago_cupon,
-    calcular_numero_dias_descuento_cupon,
     calcular_cupones_futuros_cf,
-    calcular_vp_cfs,
+    calcular_diferencias_fechas_pago_cupon,
     calcular_flujo_pesos,
+    calcular_numero_dias_descuento_cupon,
+    calcular_vp_cfs,
+    generar_fechas,
 )
 
 
@@ -47,7 +48,7 @@ def generar_cashflows_df_ibr(
     # ⚠️ Handling missing IBR rate
     try:
         if archivo_subido:
-            tasa_convertida = procesar_tasa_cupon_ibr_proyectado(
+            tasas_nom, tasas_ibr = procesar_tasa_cupon_ibr_proyectado(
                 base_dias_anio=base_intereses,
                 periodicidad=periodo_cupon,
                 tasa_anual_cupon=tasa_cupon,

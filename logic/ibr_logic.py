@@ -1,15 +1,16 @@
-import requests
 import datetime
-import pandas as pd
+
 import holidays
+import pandas as pd
+import requests
+
 from data_handling.shared_data import filtrar_por_fecha
 from logic.shared_logic import (
     calcular_fecha_anterior,
+    convertir_tasa_nominal_a_efectiva_anual,
     shift_list_with_replacement,
     sumar_tasas,
-    convertir_tasa_nominal_a_efectiva_anual,
 )
-from utils.decimals_helper import truncate
 
 co_holidays = holidays.Colombia()  # Festivos en Colombia
 
@@ -221,7 +222,6 @@ def sumar_spread_ibr_batch(
         Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
     """
     try:
-
         tasa_ibr_real = obtener_tasa_ibr_real_batch(
             lista_fechas=lista_fechas, archivo=archivo
         )

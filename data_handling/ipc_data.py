@@ -1,16 +1,18 @@
-import pandas as pd
-from logic.ipc_logic import procesar_fechas
 import datetime
-from logic.shared_logic import (
-    generar_fechas,
-    calcular_diferencias_fechas_pago_cupon,
-    calcular_numero_dias_descuento_cupon,
-    calcular_cupones_futuros_cf,
-    calcular_vp_cfs,
-    calcular_flujo_pesos,
-    convertir_tasa_nominal_a_efectiva_anual,
-)
+
+import pandas as pd
+
 from data_handling.shared_data import filtrar_por_fecha
+from logic.ipc_logic import procesar_fechas
+from logic.shared_logic import (
+    calcular_cupones_futuros_cf,
+    calcular_diferencias_fechas_pago_cupon,
+    calcular_flujo_pesos,
+    calcular_numero_dias_descuento_cupon,
+    calcular_vp_cfs,
+    convertir_tasa_nominal_a_efectiva_anual,
+    generar_fechas,
+)
 
 
 def generar_cashflows_df_ipc(
@@ -146,7 +148,6 @@ def sumar_negociacion_ipc(
         Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
     """
     try:
-
         tasas_ipc = filtrar_por_fecha(
             archivo=archivo,
             nombre_hoja="IPC Estimado",

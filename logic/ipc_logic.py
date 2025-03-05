@@ -1,9 +1,9 @@
 import pandas as pd
+
 from data_handling.shared_data import filtrar_por_fecha
 
 
 def procesar_fechas(lista_fechas, fecha_neg, archivo, spread, periodicidad):
-
     periodos_por_anio = {"Mensual": 12, "Trimestral": 4, "Semestral": 2, "Anual": 1}
     # Llamar a la función filtrar_por_fecha con los parámetros requeridos
     df_filtrado = filtrar_por_fecha(

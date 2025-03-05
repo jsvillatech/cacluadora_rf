@@ -1,15 +1,15 @@
-import streamlit as st
 import pandas as pd
-from utils.ui_helpers import display_errors
-from utils.validation import validate_inputs
+import streamlit as st
+
 from data_handling.ibr_data import generar_cashflows_df_ibr, obtener_tasa_negociacion_EA
 from data_handling.shared_data import (
-    calcular_precio_sucio_desde_VP,
-    clasificar_precio_limpio,
     calcular_cupon_corrido,
+    calcular_precio_sucio_desde_VP,
     calcular_tir_desde_df,
+    clasificar_precio_limpio,
 )
-
+from utils.ui_helpers import display_errors
+from utils.validation import validate_inputs
 
 # Initialize session state
 if "uploaded_file" not in st.session_state:
