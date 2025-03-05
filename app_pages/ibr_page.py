@@ -168,8 +168,18 @@ with main_header_col2:
         label_chart_tasa_place_holder = st.empty()
         result_chart_tasa_place_holder = st.empty()
 
-# Container for detailed table
-st.header("Tabla detallada")
+
+tab1, tab2 = st.tabs(["🗃 Datos", "📈 Flujos Reales"])
+with tab1:
+    # Container for detailed table
+    st.header("Tabla de Datos")
+    tabla1_place_holder = st.empty()
+
+with tab2:
+
+    st.header("Tabla de Flujos Reales")
+    tabla2_place_holder = st.empty()
+
 
 if submitted:
     # Retrieve file from session state
@@ -238,7 +248,7 @@ if submitted:
                         "VP CF", format="%.6f%%", help="Valor Presente del Cupón"
                     ),
                 }
-                st.dataframe(
+                tabla1_place_holder.dataframe(
                     df, use_container_width=True, height=900, column_config=config
                 )
 
