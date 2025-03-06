@@ -192,10 +192,10 @@ if submitted:
         st.dataframe(df, column_config=config, use_container_width=True, height=900)
 
         # 🔹 Calculate new metric values
-        precio_sucio = calcular_precio_sucio_desde_VP(df)
+        precio_sucio = calcular_precio_sucio_desde_VP(df.copy())
         valor_giro = (precio_sucio / 100) * valor_nominal
         cupon_corrido = calcular_cupon_corrido(
-            df=df,
+            df=df.copy(),
             date_negociacion=fecha_negociacion,
             periodicidad=periodo_cupon,
             base_intereses=base_intereses,
@@ -203,7 +203,7 @@ if submitted:
         precio_limpio = precio_sucio - cupon_corrido
         precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
         valor_TIR_inversion = calcular_tir_desde_df(
-            df=df,
+            df=df.copy(),
             columna_flujos="Flujo Pesos ($)",
             valor_giro=valor_giro,
             fecha_negociacion=fecha_negociacion,

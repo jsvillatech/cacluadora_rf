@@ -239,6 +239,7 @@ if submitted:
                 valor_nominal=valor_nominal,
                 archivo_subido=uploaded_file,
                 modalidad=modalidad_tasa_cupon,
+                archivo=uploaded_file,
             )
             df_flujos = generar_flujos_real_df_ibr(
                 fecha_emision=fecha_emision,
@@ -250,6 +251,7 @@ if submitted:
                 valor_nominal_base=valor_nominal_base,
                 valor_nominal=valor_nominal,
                 modalidad=modalidad_tasa_cupon,
+                archivo=uploaded_file,
             )
             if isinstance(df_datos, dict) and "error" in df_datos:
                 df_errors_placeholder.error(df_datos["error"])
@@ -257,6 +259,9 @@ if submitted:
             if isinstance(df_flujos, dict) and "error" in df_flujos:
                 df_errors_placeholder.error(df_flujos["error"])
             else:
+                # Inicia index desde 1.
+                df_datos.index = range(1, len(df_datos) + 1)
+                df_flujos.index = range(1, len(df_flujos) + 1)
                 # show df
                 config_tabla_datos = {
                     "CFt": st.column_config.NumberColumn(
@@ -279,10 +284,10 @@ if submitted:
                 )
 
                 # Calculate new metric values
-                precio_sucio = calcular_precio_sucio_desde_VP(df_datos)
+                precio_sucio = calcular_precio_sucio_desde_VP(df_datos.copy())
                 valor_giro = (precio_sucio / 100) * valor_nominal
                 cupon_corrido = calcular_cupon_corrido(
-                    df=df_datos,
+                    df=df_datos.copy(),
                     date_negociacion=fecha_negociacion,
                     periodicidad=periodo_cupon,
                     base_intereses=base_intereses,
@@ -297,8 +302,8 @@ if submitted:
                     modalidad=modalidad_tasa_cupon,
                 )
                 valor_TIR_inversion = calcular_tir_desde_df(
-                    df=df_flujos,
-                    columna_flujos="Flujo Pesos ($)",
+                    df=df_flujos.copy(),
+                    columna_flujos="Flujo Pesos Reales(COP$)",
                     valor_giro=valor_giro,
                     fecha_negociacion=fecha_negociacion,
                 )

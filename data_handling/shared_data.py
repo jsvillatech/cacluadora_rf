@@ -215,7 +215,8 @@ def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
     # Convertir la lista de fechas a datetime64[ns]
     fechas_filtro = pd.to_datetime(fechas_filtro)
     # Filtrar por la lista de fechas usando isin()
-    df_filtrado = df[df["Fecha"].isin(fechas_filtro)]
+    df_filtrado = df[df["Fecha"].isin(fechas_filtro)].copy()
+    df_filtrado["IBR Estimada"] = df_filtrado["IBR Estimada"] * 100
 
     return df_filtrado
 

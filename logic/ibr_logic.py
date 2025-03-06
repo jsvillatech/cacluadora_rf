@@ -315,7 +315,7 @@ def procesar_tasa_cupon_ibr_datos(
     return tasas
 
 
-def procesar_tasa_flujos_real_ibr_online(
+def procesar_tasa_flujos_real_ibr(
     base_dias_anio: str,
     periodicidad: str,
     tasa_anual_cupon: float,
@@ -372,7 +372,6 @@ def procesar_tasa_flujos_real_ibr_online(
         modalidad=modalidad,
         archivo=archivo,
     )
-
     tasa_fechas = sumar_spread_ibr_batch(
         tasa_spread=tasa_anual_cupon,
         lista_fechas=fechas_cupones,

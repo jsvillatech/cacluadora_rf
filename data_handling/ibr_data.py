@@ -3,7 +3,7 @@ import pandas as pd
 from logic.ibr_logic import (
     obtener_tasa_negociacion_EA,
     procesar_tasa_cupon_ibr_datos,
-    procesar_tasa_flujos_real_ibr_online,
+    procesar_tasa_flujos_real_ibr,
 )
 from logic.shared_logic import (
     calcular_cupones_futuros_cf,
@@ -84,7 +84,7 @@ def generar_cashflows_df_ibr(
         "VP CF": vp_cfs,
         # "t*PV CF": round(t_pv_cf, 8),
         # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
-        "Aprox. Flujo Pesos ($)": flujo_pesos,
+        "Aprox. Flujo Pesos (COP$)": flujo_pesos,
     }
 
     # 🔍 Ensure all columns have the same length
@@ -123,7 +123,7 @@ def generar_flujos_real_df_ibr(
     )
     # ⚠️ Handling missing IBR rate
     try:
-        tasas, tasas_ibr = procesar_tasa_flujos_real_ibr_online(
+        tasas, tasas_ibr = procesar_tasa_flujos_real_ibr(
             base_dias_anio=base_intereses,
             periodicidad=periodo_cupon,
             tasa_anual_cupon=tasa_cupon,
@@ -142,8 +142,8 @@ def generar_flujos_real_df_ibr(
 
     flujos_reales = {
         "Fechas Cupón": fechas_cupon,
-        "Flujo Pesos Reales($)": flujo_pesos,
-        "Tasas IBR %": tasas_ibr,
+        "Flujo Pesos Reales(COP$)": flujo_pesos,
+        "Tasas IBR % Aplicadas": tasas_ibr,
     }
 
     # 🔍 Ensure all columns have the same length
