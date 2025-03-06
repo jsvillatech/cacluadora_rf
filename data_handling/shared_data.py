@@ -215,8 +215,8 @@ def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
     # Convertir la lista de fechas a datetime64[ns]
     fechas_filtro = pd.to_datetime(fechas_filtro)
     # Filtrar por la lista de fechas usando isin()
-    df_filtrado = df[df["Fecha"].isin(fechas_filtro)].copy()
-    df_filtrado["IBR Estimada"] = df_filtrado["IBR Estimada"] * 100
+    df_filtrado = df[df.iloc[:, 0].isin(fechas_filtro)].copy()
+    df_filtrado.iloc[:, 1] = df_filtrado.iloc[:, 1] * 100
 
     return df_filtrado
 
@@ -237,7 +237,7 @@ def calcular_tir_desde_df(
     :return: TIR en porcentaje.
     """
 
-    fechas = df["Fechas Cupón"].tolist()
+    fechas = df["Fechas Cupón"].dt.strftime("%d/%m/%Y").tolist()
     # agregar fecha de negociacion
     fechas.insert(0, fecha_negociacion.strftime("%d/%m/%Y"))
     fechas_cupones = [datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in fechas]

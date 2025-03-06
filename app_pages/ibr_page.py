@@ -53,6 +53,7 @@ with upload_col2:
             type=["xlsx"],
             on_change=store_file,
         )
+        uploaded_file_error = st.empty()
 
 # Main form
 main_header_col1, main_header_col2 = st.columns(2)
@@ -71,7 +72,7 @@ with main_header_col1:
             )
             valor_nominal_error = st.empty()
             fecha_emision = st.date_input(
-                "**Fecha de emisión**", format="DD/MM/YYYY", value=None
+                "**Fecha de Emisión**", format="DD/MM/YYYY", value=None
             )
             fecha_emision_error = st.empty()
             fecha_vencimiento = st.date_input(
@@ -88,7 +89,7 @@ with main_header_col1:
 
         with header_form_col2:
             tasa_cupon = st.number_input(
-                "**Tasa de cupón (Spread)**",
+                "**Tasa de Cupón (Spread)**",
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
@@ -188,8 +189,8 @@ with tab2:
 if submitted:
     # Retrieve file from session state
     uploaded_file = st.session_state.uploaded_file
-    if radio_data == "Excel" and uploaded_file is None:
-        st.error("Por favor sube el archivo de proyecciones.")
+    if radio_data == "Excel de Proyecciones" and uploaded_file is None:
+        uploaded_file_error.error("Por favor sube el archivo de proyecciones.")
     else:
         # Validate form inputs
         errors = validate_inputs(

@@ -2,7 +2,6 @@ import calendar
 from datetime import datetime
 from math import pow
 
-import numpy as np
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 
@@ -58,15 +57,20 @@ def generar_fechas(
 
 
 def calcular_diferencias_fechas_pago_cupon(
-    lista_fechas: list[str], periodicidad: str, base_intereses: str
+    lista_fechas: list[str],
+    periodicidad: str,
+    base_intereses: str,
+    ignorar_bisiesto: bool = True,
 ):
     """
     Calcula la diferencia en días entre fechas consecutivas de una lista de fechas (Pago Cupon)
-    usando la convención 30/360 o 365/365.
+    usando la convención 30/360 o 365/365, con opción de ignorar años bisiestos.
 
     Args:
         lista_fechas (list[str]): Lista de fechas en formato 'DD/MM/YYYY'.
-        base_intereses (str): Base Intereses del cálculo ('30/360' o '365/365').
+        periodicidad (str): Periodicidad del pago.
+        base_intereses (str): Base de intereses ('30/360' o '365/365').
+        ignorar_bisiesto (bool): Si True, ignora el 29 de febrero en años bisiestos.
 
     Returns:
         list[int]: Lista de diferencias en días entre fechas consecutivas.
@@ -95,6 +99,14 @@ def calcular_diferencias_fechas_pago_cupon(
         if base_intereses == "365/365":
             # Cálculo exacto de diferencia real en días
             diferencia = (fecha_actual - fecha_anterior).days
+
+            # 📌 Ignorar el 29 de febrero si la opción está activada
+            if ignorar_bisiesto:
+                for año in range(fecha_anterior.year, fecha_actual.year + 1):
+                    if calendar.isleap(año):  # Verifica si es bisiesto
+                        fecha_bisiesto = pd.Timestamp(year=año, month=2, day=29)
+                        if fecha_anterior <= fecha_bisiesto <= fecha_actual:
+                            diferencia -= 1  # Resta un día
 
         elif base_intereses == "30/360":
             # Extraemos año, mes y día y ajustamos a la convención 30/360
@@ -317,7 +329,8 @@ def sumar_tasas(tasa1: float, tasa2: float, modalidad: str):
     - Si la modalidad es "nominal", se suman directamente, asumiendo que tienen la misma periodicidad.
     """
     if modalidad == "EA":
-        tasa_total = (1 + tasa1) * (1 + tasa2) - 1
+        tasa_total = ((1 + (tasa1 / 100)) * (1 + (tasa2 / 100)) - 1) * 100
+
     elif modalidad == "Nominal":
         tasa_total = (
             tasa1 + tasa2

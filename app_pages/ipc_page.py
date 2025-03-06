@@ -1,12 +1,13 @@
 import streamlit as st
 
-from data_handling.ipc_data import generar_cashflows_df_ipc, obtener_tasa_negociacion_EA
+from data_handling.ipc_data import generar_cashflows_df_ipc
 from data_handling.shared_data import (
     calcular_cupon_corrido,
     calcular_precio_sucio_desde_VP,
     calcular_tir_desde_df,
     clasificar_precio_limpio,
 )
+from logic.ipc_logic import sumar_spread_ipc
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
 
@@ -44,11 +45,12 @@ with upload_col2:
     # Display file uploader only if "Excel" is selected
     if st.session_state.radio_option == "Excel de Proyecciones":
         uploaded_file = st.file_uploader(
-            "Selecciona el excel con los datos de IBR Proyectados",
+            "Selecciona el excel con los datos de IPC Proyectados",
             key="file_uploader_key",
             type=["xlsx"],
             on_change=store_file,
         )
+        uploaded_file_error = st.empty()
 
 # Main form
 main_header_col1, main_header_col2 = st.columns(2)
@@ -67,7 +69,7 @@ with main_header_col1:
             )
             valor_nominal_error = st.empty()
             fecha_emision = st.date_input(
-                "**Fecha de emisión**", format="DD/MM/YYYY", value=None
+                "**Fecha de Emisión**", format="DD/MM/YYYY", value=None
             )
             fecha_emision_error = st.empty()
             fecha_vencimiento = st.date_input(
@@ -84,7 +86,7 @@ with main_header_col1:
 
         with header_form_col2:
             tasa_cupon = st.number_input(
-                "**Tasa de cupón (Spread)**",
+                "**Tasa de Cupón (Spread)**",
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
@@ -184,8 +186,8 @@ with tab2:
 if submitted:
     # Retrieve file from session state
     uploaded_file = st.session_state.uploaded_file
-    if radio_data == "Excel" and uploaded_file is None:
-        st.error("Por favor sube el archivo de proyecciones.")
+    if radio_data == "Excel de Proyecciones" and uploaded_file is None:
+        uploaded_file_error.error("Por favor sube el archivo de proyecciones.")
     else:
         # Validate form inputs
         errors = validate_inputs(
@@ -233,7 +235,8 @@ if submitted:
                 tasa_mercado=tasa_mercado,
                 valor_nominal=valor_nominal,
                 archivo_subido=uploaded_file,
-                modalidad_tasa_ipc=modalidad_tasa_ipc,
+                modalidad=modalidad_tasa_cupon,
+                modo_ipc=modalidad_tasa_ipc,
             )
             if isinstance(df, dict) and "error" in df:
                 df_errors_placeholder.error(df["error"])
@@ -241,14 +244,14 @@ if submitted:
                 # show df
                 config = {
                     "CFt": st.column_config.NumberColumn(
-                        "CFt", format="%.3f%%", help="Cupón Futuro"
+                        "CFt", format="%.6f%%", help="Cupón Futuro"
                     ),
                     "VP CF": st.column_config.NumberColumn(
-                        "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
+                        "VP CF", format="%.6f%%", help="Valor Presente del Cupón"
                     ),
                 }
-                st.dataframe(
-                    df, use_container_width=True, height=500, column_config=config
+                tabla1_place_holder.dataframe(
+                    df, use_container_width=True, height=800, column_config=config
                 )
 
                 # Calculate new metric values
@@ -262,17 +265,17 @@ if submitted:
                 )
                 precio_limpio = precio_sucio - cupon_corrido
                 precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
-                valor_TIR_negociar = obtener_tasa_negociacion_EA(
-                    tasa_mercado=tasa_mercado,
-                    fecha_negociacion=fecha_negociacion,
-                    archivo_subido=uploaded_file,
-                    periodo_cupon=periodo_cupon,
+                valor_TIR_negociar = sumar_spread_ipc(
+                    tasa_spread=tasa_mercado,
+                    fecha=fecha_negociacion,
+                    modalidad=modalidad_tasa_cupon,
+                    archivo=uploaded_file,
                 )
                 valor_TIR_inversion = calcular_tir_desde_df(
                     df=df,
                     columna_flujos="Flujo Pesos ($)",
                     valor_giro=valor_giro,
-                    periodo=periodo_cupon,
+                    fecha_negociacion=fecha_negociacion,
                 )
                 # Update metrics dynamically
                 precio_sucio_placeholder.metric(
