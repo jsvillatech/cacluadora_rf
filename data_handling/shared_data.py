@@ -236,7 +236,7 @@ def calcular_tir_desde_df(
     :return: TIR en porcentaje.
     """
 
-    fechas = df["Fechas Cupón"].dt.strftime("%d/%m/%Y").tolist()
+    fechas = df["Fechas Cupón"].tolist()
     # agregar fecha de negociacion
     fechas.insert(0, fecha_negociacion.strftime("%d/%m/%Y"))
     fechas_cupones = [datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in fechas]

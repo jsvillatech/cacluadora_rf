@@ -243,6 +243,76 @@ def procesar_tasa_cupon_ibr_online(
     periodicidad: str,
     tasa_anual_cupon: float,
     lista_fechas: list[str],
+    fecha_negociacion: datetime.date,
+    modalidad: str,
+):
+    """
+    Procesa una tasa Spread Cupon. Método online.
+
+    Parámetros:
+    base_dias_anio (str): Base de cálculo de días ('30/360' o '365/365').
+    periodicidad (str): Periodo de conversión ('Mensual', 'Trimestral', 'Semestral', 'Anual').
+    tasa_anual_cupon (float): Tasa anual expresada en decimal (Ej: 10% -> 0.10).
+    lista_fechas (list[str]): Lista de fechas de cada cupón en formato 'DD/MM/YYYY'.
+    modalidad: str, "Nominal" o "EA" para indicar el tipo de tasa.
+    fecha_negociacion (datetime.date): Fecha de negociación en formato 'DD/MM/YYYY'.
+
+    Retorna:
+    list[float]: Lista de tasas convertidas a la periodicidad especificada.
+    """
+
+    base = {"30/360": 360, "365/365": 365}
+    periodos_por_anio = {"Mensual": 12, "Trimestral": 4, "Semestral": 2, "Anual": 1}
+
+    if not lista_fechas:
+        raise ValueError("La lista de fechas de cupones está vacía.")
+
+    if periodicidad not in periodos_por_anio:
+        raise ValueError(
+            "Periodicidad no válida. Usa: 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+        )
+
+    if base_dias_anio not in base:
+        raise ValueError("Base no válida. Usa '30/360' o '365/365'.")
+
+    tasas = []
+
+    # Convertir lista de fechas a objetos datetime
+    fechas_cupones = [
+        datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in lista_fechas
+    ]
+
+    # Fecha del Periodo anterior (inicio del cupon actual)
+    fecha_per_anterior = calcular_fecha_anterior(
+        fecha=min(fechas_cupones),
+        periodicidad=periodicidad,
+        base_intereses=base_dias_anio,
+        num_per=1,
+    )
+    tasa_per_anterior = sumar_spread_ibr(
+        tasa_spread=tasa_anual_cupon, fecha=fecha_per_anterior, modalidad=modalidad
+    )
+
+    # Calcular la tasa para el primer cupón
+    tasa_ibr_spread_1 = (tasa_per_anterior) / 100
+    tasas.append(tasa_ibr_spread_1 / periodos_por_anio[periodicidad])
+
+    # Obtener IBR del día anterior a la fecha de negociación para los siguientes cupones
+    ibr_negociacion = sumar_spread_ibr(
+        tasa_spread=tasa_anual_cupon, fecha=fecha_negociacion, modalidad=modalidad
+    )
+    for _ in range(1, len(lista_fechas)):
+        tasa_ibr_spread_i = (ibr_negociacion) / 100
+        tasas.append(tasa_ibr_spread_i / periodos_por_anio[periodicidad])
+
+    return tasas
+
+
+def procesar_tasa_flujos_real_ibr_online(
+    base_dias_anio: str,
+    periodicidad: str,
+    tasa_anual_cupon: float,
+    lista_fechas: list[str],
     modalidad: str,
 ):
     """

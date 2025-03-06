@@ -4,6 +4,7 @@ from logic.ibr_logic import (
     obtener_tasa_negociacion_EA,
     procesar_tasa_cupon_ibr_online,
     procesar_tasa_cupon_ibr_proyectado,
+    procesar_tasa_flujos_real_ibr_online,
 )
 from logic.shared_logic import (
     calcular_cupones_futuros_cf,
@@ -48,7 +49,7 @@ def generar_cashflows_df_ibr(
     # ⚠️ Handling missing IBR rate
     try:
         if archivo_subido:
-            tasas_nom, tasas_ibr = procesar_tasa_cupon_ibr_proyectado(
+            tasas = procesar_tasa_cupon_ibr_proyectado(
                 base_dias_anio=base_intereses,
                 periodicidad=periodo_cupon,
                 tasa_anual_cupon=tasa_cupon,
@@ -58,18 +59,19 @@ def generar_cashflows_df_ibr(
                 archivo=archivo_subido,
             )
         else:
-            tasas_nom, tasas_ibr = procesar_tasa_cupon_ibr_online(
+            tasas = procesar_tasa_cupon_ibr_online(
                 base_dias_anio=base_intereses,
                 periodicidad=periodo_cupon,
                 tasa_anual_cupon=tasa_cupon,
                 lista_fechas=fechas_cupon,
+                fecha_negociacion=fecha_negociacion,
                 modalidad=modalidad,
             )
     except ValueError as e:
         return {"error": str(e)}  # Return error message instead of crashing
 
     cf_t = calcular_cupones_futuros_cf(
-        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas_nom
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas
     )
 
     # IBR+SPREAD negociacion -> Tasa Negociacion EA
@@ -93,7 +95,6 @@ def generar_cashflows_df_ibr(
         # "t*PV CF": round(t_pv_cf, 8),
         # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
         "Flujo Pesos ($)": flujo_pesos,
-        "Tasas IBR %": tasas_ibr,
     }
 
     # 🔍 Ensure all columns have the same length
@@ -102,3 +103,60 @@ def generar_cashflows_df_ibr(
             raise ValueError(f"Column '{key}' has inconsistent length!")
 
     return pd.DataFrame(cashflows)
+
+
+def generar_flujos_real_df_ibr(
+    fecha_emision,
+    fecha_vencimiento,
+    fecha_negociacion,
+    periodo_cupon,
+    base_intereses,
+    tasa_cupon,
+    valor_nominal_base,
+    valor_nominal,
+    modalidad,
+):
+    """
+    Returns a complete bond cash flow DataFrame.
+    """
+    fechas_cupon = generar_fechas(
+        fecha_inicio=fecha_emision,
+        fecha_fin=fecha_vencimiento,
+        fecha_negociacion=fecha_negociacion,
+        periodicidad=periodo_cupon,
+    )
+    dias_cupon = calcular_diferencias_fechas_pago_cupon(
+        lista_fechas=fechas_cupon,
+        periodicidad=periodo_cupon,
+        base_intereses=base_intereses,
+    )
+    # ⚠️ Handling missing IBR rate
+    try:
+        tasas, tasas_ibr = procesar_tasa_flujos_real_ibr_online(
+            base_dias_anio=base_intereses,
+            periodicidad=periodo_cupon,
+            tasa_anual_cupon=tasa_cupon,
+            lista_fechas=fechas_cupon,
+            modalidad=modalidad,
+        )
+    except ValueError as e:
+        return {"error": str(e)}  # Return error message instead of crashing
+
+    cf_t = calcular_cupones_futuros_cf(
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas
+    )
+
+    flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)
+
+    flujos_reales = {
+        "Fechas Cupón": fechas_cupon,
+        "Flujo Pesos ($)": flujo_pesos,
+        "Tasas IBR %": tasas_ibr,
+    }
+
+    # 🔍 Ensure all columns have the same length
+    for key, value in flujos_reales.items():
+        if len(value) != len(dias_cupon):
+            raise ValueError(f"Column '{key}' has inconsistent length!")
+
+    return pd.DataFrame(flujos_reales)
