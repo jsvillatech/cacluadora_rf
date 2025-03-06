@@ -254,11 +254,11 @@ if submitted:
             if isinstance(df_datos, dict) and "error" in df_datos:
                 df_errors_placeholder.error(df_datos["error"])
 
-            if isinstance(df_flujos, dict) and "error" in df_datos:
-                df_errors_placeholder.error(df_datos["error"])
+            if isinstance(df_flujos, dict) and "error" in df_flujos:
+                df_errors_placeholder.error(df_flujos["error"])
             else:
                 # show df
-                config = {
+                config_tabla_datos = {
                     "CFt": st.column_config.NumberColumn(
                         "CFt", format="%.6f%%", help="Cupón Futuro"
                     ),
@@ -267,13 +267,15 @@ if submitted:
                     ),
                 }
                 tabla_datos_place_holder.dataframe(
-                    df_datos, use_container_width=True, height=900, column_config=config
+                    df_datos,
+                    use_container_width=True,
+                    height=900,
+                    column_config=config_tabla_datos,
                 )
                 tabla_flujos_place_holder.dataframe(
                     df_flujos,
                     use_container_width=True,
                     height=900,
-                    column_config=config,
                 )
 
                 # Calculate new metric values

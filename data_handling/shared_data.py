@@ -5,7 +5,7 @@ import pandas as pd
 from pyxirr import xirr
 
 from logic.shared_logic import calcular_fecha_anterior
-from utils.financial_functions import truncate
+from utils.helper_functions import truncate
 
 
 def calcular_cupon_corrido(

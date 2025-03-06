@@ -2,8 +2,7 @@ import pandas as pd
 
 from logic.ibr_logic import (
     obtener_tasa_negociacion_EA,
-    procesar_tasa_cupon_ibr_online,
-    procesar_tasa_cupon_ibr_proyectado,
+    procesar_tasa_cupon_ibr_datos,
     procesar_tasa_flujos_real_ibr_online,
 )
 from logic.shared_logic import (
@@ -28,6 +27,7 @@ def generar_cashflows_df_ibr(
     valor_nominal,
     archivo_subido,
     modalidad,
+    archivo,
 ):
     """
     Returns a complete bond cash flow DataFrame.
@@ -48,25 +48,15 @@ def generar_cashflows_df_ibr(
     )
     # ⚠️ Handling missing IBR rate
     try:
-        if archivo_subido:
-            tasas = procesar_tasa_cupon_ibr_proyectado(
-                base_dias_anio=base_intereses,
-                periodicidad=periodo_cupon,
-                tasa_anual_cupon=tasa_cupon,
-                lista_fechas=fechas_cupon,
-                fecha_inicio=fecha_emision,
-                fecha_negociacion=fecha_negociacion,
-                archivo=archivo_subido,
-            )
-        else:
-            tasas = procesar_tasa_cupon_ibr_online(
-                base_dias_anio=base_intereses,
-                periodicidad=periodo_cupon,
-                tasa_anual_cupon=tasa_cupon,
-                lista_fechas=fechas_cupon,
-                fecha_negociacion=fecha_negociacion,
-                modalidad=modalidad,
-            )
+        tasas = procesar_tasa_cupon_ibr_datos(
+            base_dias_anio=base_intereses,
+            periodicidad=periodo_cupon,
+            tasa_anual_cupon=tasa_cupon,
+            lista_fechas=fechas_cupon,
+            fecha_negociacion=fecha_negociacion,
+            modalidad=modalidad,
+            archivo=archivo,
+        )
     except ValueError as e:
         return {"error": str(e)}  # Return error message instead of crashing
 
@@ -94,7 +84,7 @@ def generar_cashflows_df_ibr(
         "VP CF": vp_cfs,
         # "t*PV CF": round(t_pv_cf, 8),
         # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
-        "Flujo Pesos ($)": flujo_pesos,
+        "Aprox. Flujo Pesos ($)": flujo_pesos,
     }
 
     # 🔍 Ensure all columns have the same length
@@ -115,6 +105,7 @@ def generar_flujos_real_df_ibr(
     valor_nominal_base,
     valor_nominal,
     modalidad,
+    archivo,
 ):
     """
     Returns a complete bond cash flow DataFrame.
@@ -138,6 +129,7 @@ def generar_flujos_real_df_ibr(
             tasa_anual_cupon=tasa_cupon,
             lista_fechas=fechas_cupon,
             modalidad=modalidad,
+            archivo=archivo,
         )
     except ValueError as e:
         return {"error": str(e)}  # Return error message instead of crashing
@@ -150,7 +142,7 @@ def generar_flujos_real_df_ibr(
 
     flujos_reales = {
         "Fechas Cupón": fechas_cupon,
-        "Flujo Pesos ($)": flujo_pesos,
+        "Flujo Pesos Reales($)": flujo_pesos,
         "Tasas IBR %": tasas_ibr,
     }
 
