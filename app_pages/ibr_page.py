@@ -1,15 +1,19 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
+
+from data_handling.ibr_data import (
+    generar_cashflows_df_ibr,
+    generar_flujos_real_df_ibr,
+    obtener_tasa_negociacion_EA,
+)
+from data_handling.shared_data import (
+    calcular_cupon_corrido,
+    calcular_precio_sucio_desde_VP,
+    calcular_tir_desde_df,
+    clasificar_precio_limpio,
+)
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.ibr_data import generar_cashflows_df_ibr, obtener_tasa_negociacion_EA
-from data_handling.shared_data import (
-    calcular_precio_sucio_desde_VP,
-    clasificar_precio_limpio,
-    calcular_cupon_corrido,
-    calcular_tir_desde_df,
-)
-
 
 # Initialize session state
 if "uploaded_file" not in st.session_state:
@@ -49,6 +53,7 @@ with upload_col2:
             type=["xlsx"],
             on_change=store_file,
         )
+        uploaded_file_error = st.empty()
 
 # Main form
 main_header_col1, main_header_col2 = st.columns(2)
@@ -67,7 +72,7 @@ with main_header_col1:
             )
             valor_nominal_error = st.empty()
             fecha_emision = st.date_input(
-                "**Fecha de emisión**", format="DD/MM/YYYY", value=None
+                "**Fecha de Emisión**", format="DD/MM/YYYY", value=None
             )
             fecha_emision_error = st.empty()
             fecha_vencimiento = st.date_input(
@@ -84,7 +89,7 @@ with main_header_col1:
 
         with header_form_col2:
             tasa_cupon = st.number_input(
-                "**Tasa de cupón (Spread)**",
+                "**Tasa de Cupón (Spread)**",
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
@@ -168,14 +173,24 @@ with main_header_col2:
         label_chart_tasa_place_holder = st.empty()
         result_chart_tasa_place_holder = st.empty()
 
-# Container for detailed table
-st.header("Tabla detallada")
+
+tab1, tab2 = st.tabs(["🗃 Datos", "📈 Flujos Reales"])
+with tab1:
+    # Container for detailed table
+    st.header("Tabla de Datos")
+    tabla_datos_place_holder = st.empty()
+
+with tab2:
+
+    st.header("Tabla de Flujos Reales")
+    tabla_flujos_place_holder = st.empty()
+
 
 if submitted:
     # Retrieve file from session state
     uploaded_file = st.session_state.uploaded_file
-    if radio_data == "Excel" and uploaded_file is None:
-        st.error("Por favor sube el archivo de proyecciones.")
+    if radio_data == "Excel de Proyecciones" and uploaded_file is None:
+        uploaded_file_error.error("Por favor sube el archivo de proyecciones.")
     else:
         # Validate form inputs
         errors = validate_inputs(
@@ -188,6 +203,7 @@ if submitted:
             fecha_negociacion,
             tasa_mercado,
             valor_nominal_base,
+            radio_data,
         )
 
         error_placeholders = {
@@ -212,7 +228,7 @@ if submitted:
                 st.success("Datos de BanRep utilizados en el cálculo.")
 
             df_errors_placeholder = st.empty()
-            df = generar_cashflows_df_ibr(
+            df_datos = generar_cashflows_df_ibr(
                 fecha_emision=fecha_emision,
                 fecha_vencimiento=fecha_vencimiento,
                 fecha_negociacion=fecha_negociacion,
@@ -223,28 +239,56 @@ if submitted:
                 tasa_mercado=tasa_mercado,
                 valor_nominal=valor_nominal,
                 archivo_subido=uploaded_file,
+                modalidad=modalidad_tasa_cupon,
+                archivo=uploaded_file,
             )
-            if isinstance(df, dict) and "error" in df:
-                df_errors_placeholder.error(df["error"])
+            df_flujos = generar_flujos_real_df_ibr(
+                fecha_emision=fecha_emision,
+                fecha_vencimiento=fecha_vencimiento,
+                fecha_negociacion=fecha_negociacion,
+                periodo_cupon=periodo_cupon,
+                base_intereses=base_intereses,
+                tasa_cupon=tasa_cupon,
+                valor_nominal_base=valor_nominal_base,
+                valor_nominal=valor_nominal,
+                modalidad=modalidad_tasa_cupon,
+                archivo=uploaded_file,
+            )
+            if isinstance(df_datos, dict) and "error" in df_datos:
+                df_errors_placeholder.error(df_datos["error"])
+
+            if isinstance(df_flujos, dict) and "error" in df_flujos:
+                df_errors_placeholder.error(df_flujos["error"])
             else:
+                # Inicia index desde 1.
+                df_datos.index = range(1, len(df_datos) + 1)
+                df_flujos.index = range(1, len(df_flujos) + 1)
                 # show df
-                config = {
+                config_tabla_datos = {
                     "CFt": st.column_config.NumberColumn(
-                        "CFt", format="%.3f%%", help="Cupón Futuro"
+                        "CFt", format="%.6f%%", help="Cupón Futuro"
                     ),
                     "VP CF": st.column_config.NumberColumn(
-                        "VP CF", format="%.4f%%", help="Valor Presente del Cupón"
+                        "VP CF", format="%.6f%%", help="Valor Presente del Cupón"
                     ),
                 }
-                st.dataframe(
-                    df, use_container_width=True, height=900, column_config=config
+                tabla_datos_place_holder.dataframe(
+                    df_datos,
+                    use_container_width=True,
+                    height=900,
+                    column_config=config_tabla_datos,
+                )
+                tabla_flujos_place_holder.dataframe(
+                    df_flujos,
+                    use_container_width=True,
+                    height=900,
                 )
 
                 # Calculate new metric values
-                precio_sucio = calcular_precio_sucio_desde_VP(df)
+                precio_sucio = calcular_precio_sucio_desde_VP(df_datos.copy())
                 valor_giro = (precio_sucio / 100) * valor_nominal
                 cupon_corrido = calcular_cupon_corrido(
-                    df=df,
+                    df=df_datos.copy(),
                     date_negociacion=fecha_negociacion,
                     periodicidad=periodo_cupon,
                     base_intereses=base_intereses,
@@ -256,12 +300,13 @@ if submitted:
                     fecha_negociacion=fecha_negociacion,
                     archivo_subido=uploaded_file,
                     periodo_cupon=periodo_cupon,
+                    modalidad=modalidad_tasa_cupon,
                 )
                 valor_TIR_inversion = calcular_tir_desde_df(
-                    df=df,
-                    columna_flujos="Flujo Pesos ($)",
+                    df=df_flujos.copy(),
+                    columna_flujos="Flujo Pesos Reales(COP$)",
                     valor_giro=valor_giro,
-                    periodo=periodo_cupon,
+                    fecha_negociacion=fecha_negociacion,
                 )
                 # Update metrics dynamically
                 precio_sucio_placeholder.metric(

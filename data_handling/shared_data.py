@@ -1,8 +1,11 @@
-import pandas as pd
+import datetime
 from datetime import date
-import numpy_financial as npf
-from logic.shared_logic import tir_a_ea, calcular_fecha_anterior
-from utils.decimals_helper import truncate
+
+import pandas as pd
+from pyxirr import xirr
+
+from logic.shared_logic import calcular_fecha_anterior
+from utils.helper_functions import truncate
 
 
 def calcular_cupon_corrido(
@@ -212,13 +215,17 @@ def filtrar_por_fecha(archivo, nombre_hoja: str, fechas_filtro: list):
     # Convertir la lista de fechas a datetime64[ns]
     fechas_filtro = pd.to_datetime(fechas_filtro)
     # Filtrar por la lista de fechas usando isin()
-    df_filtrado = df[df["Fecha"].isin(fechas_filtro)]
+    df_filtrado = df[df.iloc[:, 0].isin(fechas_filtro)].copy()
+    df_filtrado.iloc[:, 1] = df_filtrado.iloc[:, 1] * 100
 
     return df_filtrado
 
 
 def calcular_tir_desde_df(
-    df: pd.DataFrame, columna_flujos: str, valor_giro: float, periodo: str
+    df: pd.DataFrame,
+    columna_flujos: str,
+    valor_giro: float,
+    fecha_negociacion: datetime.date,
 ):
     """
     Calcula la Tasa Interna de Retorno (TIR) a partir de un DataFrame con flujos de efectivo.
@@ -226,23 +233,22 @@ def calcular_tir_desde_df(
     :param df: DataFrame de pandas con los datos de flujo de efectivo.
     :param columna_flujos: Nombre de la columna que contiene los flujos de caja.
     :param valor_giro: Valor nominal inicial de la inversión (debe ser negativo).
-    :param periodo: Periodo de la TIR. Opciones: 'Mensual', 'Trimestral', 'Semestral', 'Anual'
+    :param fecha_negociacion: Fecha de negociacion.
     :return: TIR en porcentaje.
     """
 
+    fechas = df["Fechas Cupón"].dt.strftime("%d/%m/%Y").tolist()
+    # agregar fecha de negociacion
+    fechas.insert(0, fecha_negociacion.strftime("%d/%m/%Y"))
+    fechas_cupones = [datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in fechas]
+
     # Convertir la columna de flujos de caja en una lista
     cash_flows = df[columna_flujos].tolist()
-
     # Agregar la inversión inicial negativa al inicio
     cash_flows.insert(0, -valor_giro)
+    # Crea la lista de tuplas (fecha, monto):
+    lista_de_tuplas = dict(zip(fechas_cupones, cash_flows))
 
-    # Calcular la TIR
-    tir = npf.irr(cash_flows)
+    tir = xirr(lista_de_tuplas)
 
-    # Convertir a EA
-    tir_ea = tir_a_ea(tir=tir, periodo=periodo)
-
-    # Convertir a porcentaje
-    tir_percentage = tir_ea * 100
-
-    return tir_percentage
+    return tir * 100

@@ -1,16 +1,17 @@
 import pandas as pd
-from logic.ipc_logic import procesar_fechas
-import datetime
-from logic.shared_logic import (
-    generar_fechas,
-    calcular_diferencias_fechas_pago_cupon,
-    calcular_numero_dias_descuento_cupon,
-    calcular_cupones_futuros_cf,
-    calcular_vp_cfs,
-    calcular_flujo_pesos,
-    convertir_nominal_a_efectiva_anual,
+
+from logic.ipc_logic import (
+    procesar_tasa_cupon_ipc_datos,
+    sumar_spread_ipc,
 )
-from data_handling.shared_data import filtrar_por_fecha
+from logic.shared_logic import (
+    calcular_cupones_futuros_cf,
+    calcular_diferencias_fechas_pago_cupon,
+    calcular_flujo_pesos,
+    calcular_numero_dias_descuento_cupon,
+    calcular_vp_cfs,
+    generar_fechas,
+)
 
 
 def generar_cashflows_df_ipc(
@@ -24,6 +25,8 @@ def generar_cashflows_df_ipc(
     tasa_mercado,
     valor_nominal,
     archivo_subido,
+    modalidad,
+    modo_ipc,
 ):
     """
     Returns a complete bond cash flow DataFrame.
@@ -33,29 +36,41 @@ def generar_cashflows_df_ipc(
         fecha_fin=fecha_vencimiento,
         fecha_negociacion=fecha_negociacion,
         periodicidad=periodo_cupon,
-        modalidad=base_intereses,
-    )
-    nuevas_fechas, rates = procesar_fechas(
-        lista_fechas=fechas_cupon,
-        fecha_neg=fecha_negociacion,
-        archivo=archivo_subido,
-        spread=tasa_cupon,
-        periodicidad=periodo_cupon,
     )
     dias_cupon = calcular_diferencias_fechas_pago_cupon(
-        lista_fechas=nuevas_fechas, modalidad=base_intereses
+        lista_fechas=fechas_cupon,
+        periodicidad=periodo_cupon,
+        base_intereses=base_intereses,
     )
     dias_descuento_cupon = calcular_numero_dias_descuento_cupon(
-        fecha_negociacion=fecha_negociacion, lista_fechas_pago_cupon=nuevas_fechas
+        fecha_negociacion=fecha_negociacion, lista_fechas=fechas_cupon
     )
+
+    try:
+        tasas_cupon = procesar_tasa_cupon_ipc_datos(
+            base_dias_anio=base_intereses,
+            periodicidad=periodo_cupon,
+            tasa_anual_cupon=tasa_cupon,
+            lista_fechas=fechas_cupon,
+            dias_cupon=dias_cupon,
+            fecha_negociacion=fecha_negociacion,
+            modalidad=modalidad,
+            archivo=archivo_subido,
+            modo_ipc=modo_ipc,
+        )
+    except ValueError as e:
+        return {"error": str(e)}  # Return error message instead of crashing
 
     cf_t = calcular_cupones_futuros_cf(
-        valor_nominal_base=valor_nominal_base, tasas_periodicas=rates
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas_cupon
     )
 
-    # IBR+SPREAD negociacion -> Tasa Negociacion EA
-    tasa_negociacion_efectiva = obtener_tasa_negociacion_EA(
-        tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon
+    # IPC+SPREAD negociacion -> Tasa Negociacion EA
+    tasa_negociacion_efectiva = sumar_spread_ipc(
+        tasa_spread=tasa_mercado,
+        fecha=fecha_negociacion,
+        modalidad=modalidad,
+        archivo=archivo_subido,
     )
 
     vp_cfs = calcular_vp_cfs(
@@ -66,7 +81,7 @@ def generar_cashflows_df_ipc(
     flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)
 
     cashflows = {
-        "Fechas Cupón": nuevas_fechas,
+        "Fechas Cupón": fechas_cupon,
         "Días Cupón": dias_cupon,
         "Días Dcto Cupón": dias_descuento_cupon,
         "CFt": cf_t,
@@ -82,78 +97,3 @@ def generar_cashflows_df_ipc(
             raise ValueError(f"Column '{key}' has inconsistent length!")
 
     return pd.DataFrame(cashflows)
-
-
-def obtener_tasa_negociacion_EA(
-    tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon
-):
-    """
-    Convierte una tasa nominal mensual a una tasa efectiva anual (EA) considerando
-    el spread de negociación del IBR.
-
-    Parámetros:
-    -----------
-    tasa_mercado : float
-        Tasa nominal del mercado en la fecha de negociación.
-    fecha_negociacion : str o datetime
-        Fecha en la que se realiza la negociación.
-    archivo_subido : str o archivo
-        Archivo con los datos necesarios para calcular el spread de negociación del IBR.
-    periodo_cupon : int
-        Número de períodos del cupón en el año (por ejemplo, 12 si es mensual).
-
-    Retorna:
-    --------
-    float
-        Tasa efectiva anual (EA) ajustada con el spread de negociación del IBR.
-    """
-
-    tasa_ibr_spread_negociacion = sumar_negociacion_ipc(
-        tasa_negociacion=tasa_mercado,
-        fecha_negociacion=fecha_negociacion,
-        archivo=archivo_subido,
-    )
-    tasa_negociacion_efectiva = convertir_nominal_a_efectiva_anual(
-        tasa_nominal_negociacion=tasa_ibr_spread_negociacion, periodo=periodo_cupon
-    )
-
-    return tasa_negociacion_efectiva
-
-
-def sumar_negociacion_ipc(
-    tasa_negociacion: float, fecha_negociacion: datetime.date, archivo=None
-):
-    """
-    Calcula la tasa de negociación IBR sumando la tasa de negociación a la tasa IBR real
-    obtenida desde el Banco de la República o desde un archivo de proyecciones.
-
-    Parámetros:
-        tasa_negociacion (float): La tasa adicional que se suma a la tasa IBR.
-        fecha_negociacion (datetime.date): La fecha de la negociación.
-        archivo (optional): Archivo con datos de proyección. Si es None, se usa data en línea.
-
-    Retorna:
-        pd.Series: Serie con la tasa de negociación IBR si se usa data en línea.
-        None: Si se usa data desde un archivo (pendiente de implementación).
-
-    Excepciones:
-        Exception: Si ocurre un error al obtener la tasa IBR o si no hay datos disponibles.
-    """
-    try:
-
-        tasas_ipc = filtrar_por_fecha(
-            archivo=archivo,
-            nombre_hoja="IPC Estimado",
-            fechas_filtro=[fecha_negociacion],
-        )
-        if tasas_ipc.empty:
-            raise ValueError(
-                f"No se encontraron datos de IBR en BanRep para la fecha dada {fecha_negociacion}."
-            )
-        # Sumar la tasa de negociación a la tasa IBR
-        tasa_ibr_spread = (tasas_ipc.iloc[0]["IPC estimado"]) * 100 + tasa_negociacion
-
-        return tasa_ibr_spread
-
-    except Exception as e:
-        raise Exception(f"Error al calcular la tasa de negociación IBR: {str(e)}")

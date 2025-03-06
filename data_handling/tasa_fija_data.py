@@ -1,13 +1,14 @@
 import pandas as pd
-from logic.tasa_fija_logic import convertir_tasa_cupon_tf
+
 from logic.shared_logic import (
-    generar_fechas,
-    calcular_diferencias_fechas_pago_cupon,
-    calcular_numero_dias_descuento_cupon,
     calcular_cupones_futuros_cf,
-    calcular_vp_cfs,
+    calcular_diferencias_fechas_pago_cupon,
     calcular_flujo_pesos,
+    calcular_numero_dias_descuento_cupon,
+    calcular_vp_cfs,
+    generar_fechas,
 )
+from logic.tasa_fija_logic import convertir_tasa_cupon_tf
 
 
 def generar_cashflows_df_tf(

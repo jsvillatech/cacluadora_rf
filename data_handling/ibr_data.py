@@ -1,17 +1,17 @@
 import pandas as pd
+
 from logic.ibr_logic import (
-    convertir_tasa_cupon_ibr_proyectado,
-    convertir_tasa_cupon_ibr_online,
-    sumar_negociacion_ibr,
+    obtener_tasa_negociacion_EA,
+    procesar_tasa_cupon_ibr_datos,
+    procesar_tasa_flujos_real_ibr,
 )
 from logic.shared_logic import (
-    generar_fechas,
-    calcular_diferencias_fechas_pago_cupon,
-    calcular_numero_dias_descuento_cupon,
     calcular_cupones_futuros_cf,
-    calcular_vp_cfs,
+    calcular_diferencias_fechas_pago_cupon,
     calcular_flujo_pesos,
-    convertir_nominal_a_efectiva_anual,
+    calcular_numero_dias_descuento_cupon,
+    calcular_vp_cfs,
+    generar_fechas,
 )
 
 
@@ -26,6 +26,8 @@ def generar_cashflows_df_ibr(
     tasa_mercado,
     valor_nominal,
     archivo_subido,
+    modalidad,
+    archivo,
 ):
     """
     Returns a complete bond cash flow DataFrame.
@@ -46,35 +48,25 @@ def generar_cashflows_df_ibr(
     )
     # ⚠️ Handling missing IBR rate
     try:
-        if archivo_subido:
-            tasa_convertida = convertir_tasa_cupon_ibr_proyectado(
-                base_dias_anio=base_intereses,
-                periodicidad=periodo_cupon,
-                tasa_anual_cupon=tasa_cupon,
-                lista_fechas=fechas_cupon,
-                fecha_inicio=fecha_emision,
-                fecha_negociacion=fecha_negociacion,
-                archivo=archivo_subido,
-            )
-        else:
-            tasa_convertida = convertir_tasa_cupon_ibr_online(
-                base_dias_anio=base_intereses,
-                periodicidad=periodo_cupon,
-                tasa_anual_cupon=tasa_cupon,
-                lista_fechas=fechas_cupon,
-                fecha_inicio=fecha_emision,
-                fecha_negociacion=fecha_negociacion,
-            )
+        tasas = procesar_tasa_cupon_ibr_datos(
+            base_dias_anio=base_intereses,
+            periodicidad=periodo_cupon,
+            tasa_anual_cupon=tasa_cupon,
+            lista_fechas=fechas_cupon,
+            fecha_negociacion=fecha_negociacion,
+            modalidad=modalidad,
+            archivo=archivo,
+        )
     except ValueError as e:
         return {"error": str(e)}  # Return error message instead of crashing
 
     cf_t = calcular_cupones_futuros_cf(
-        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasa_convertida
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas
     )
 
     # IBR+SPREAD negociacion -> Tasa Negociacion EA
     tasa_negociacion_efectiva = obtener_tasa_negociacion_EA(
-        tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon
+        tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon, modalidad
     )
 
     vp_cfs = calcular_vp_cfs(
@@ -92,7 +84,7 @@ def generar_cashflows_df_ibr(
         "VP CF": vp_cfs,
         # "t*PV CF": round(t_pv_cf, 8),
         # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
-        "Flujo Pesos ($)": flujo_pesos,
+        "Aprox. Flujo Pesos (COP$)": flujo_pesos,
     }
 
     # 🔍 Ensure all columns have the same length
@@ -103,37 +95,60 @@ def generar_cashflows_df_ibr(
     return pd.DataFrame(cashflows)
 
 
-def obtener_tasa_negociacion_EA(
-    tasa_mercado, fecha_negociacion, archivo_subido, periodo_cupon
+def generar_flujos_real_df_ibr(
+    fecha_emision,
+    fecha_vencimiento,
+    fecha_negociacion,
+    periodo_cupon,
+    base_intereses,
+    tasa_cupon,
+    valor_nominal_base,
+    valor_nominal,
+    modalidad,
+    archivo,
 ):
     """
-    Convierte una tasa nominal mensual a una tasa efectiva anual (EA) considerando
-    el spread de negociación del IBR.
-
-    Parámetros:
-    -----------
-    tasa_mercado : float
-        Tasa nominal del mercado en la fecha de negociación.
-    fecha_negociacion : str o datetime
-        Fecha en la que se realiza la negociación.
-    archivo_subido : str o archivo
-        Archivo con los datos necesarios para calcular el spread de negociación del IBR.
-    periodo_cupon : int
-        Número de períodos del cupón en el año (por ejemplo, 12 si es mensual).
-
-    Retorna:
-    --------
-    float
-        Tasa efectiva anual (EA) ajustada con el spread de negociación del IBR.
+    Returns a complete bond cash flow DataFrame.
     """
-
-    tasa_ibr_spread_negociacion = sumar_negociacion_ibr(
-        tasa_negociacion=tasa_mercado,
+    fechas_cupon = generar_fechas(
+        fecha_inicio=fecha_emision,
+        fecha_fin=fecha_vencimiento,
         fecha_negociacion=fecha_negociacion,
-        archivo=archivo_subido,
+        periodicidad=periodo_cupon,
     )
-    tasa_negociacion_efectiva = convertir_nominal_a_efectiva_anual(
-        tasa_nominal_negociacion=tasa_ibr_spread_negociacion, periodo=periodo_cupon
+    dias_cupon = calcular_diferencias_fechas_pago_cupon(
+        lista_fechas=fechas_cupon,
+        periodicidad=periodo_cupon,
+        base_intereses=base_intereses,
+    )
+    # ⚠️ Handling missing IBR rate
+    try:
+        tasas, tasas_ibr = procesar_tasa_flujos_real_ibr(
+            base_dias_anio=base_intereses,
+            periodicidad=periodo_cupon,
+            tasa_anual_cupon=tasa_cupon,
+            lista_fechas=fechas_cupon,
+            modalidad=modalidad,
+            archivo=archivo,
+        )
+    except ValueError as e:
+        return {"error": str(e)}  # Return error message instead of crashing
+
+    cf_t = calcular_cupones_futuros_cf(
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas
     )
 
-    return tasa_negociacion_efectiva
+    flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)
+
+    flujos_reales = {
+        "Fechas Cupón": fechas_cupon,
+        "Flujo Pesos Reales(COP$)": flujo_pesos,
+        "Tasas IBR % Aplicadas": tasas_ibr,
+    }
+
+    # 🔍 Ensure all columns have the same length
+    for key, value in flujos_reales.items():
+        if len(value) != len(dias_cupon):
+            raise ValueError(f"Column '{key}' has inconsistent length!")
+
+    return pd.DataFrame(flujos_reales)

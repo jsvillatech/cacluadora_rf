@@ -1,21 +1,21 @@
+import pandas as pd
 import streamlit as st
+
 from data_handling.shared_data import (
     calcular_cupon_corrido,
     calcular_precio_sucio_desde_VP,
+    calcular_tir_desde_df,
     clasificar_precio_limpio,
 )
+from data_handling.tasa_fija_data import generar_cashflows_df_tf
 from utils.ui_helpers import display_errors
 from utils.validation import validate_inputs
-from data_handling.tasa_fija_data import generar_cashflows_df_tf
-import pandas as pd
-
 
 # start from here
 st.title("Calculadora Tasa Fija")
 st.divider()
 main_header_col1, main_header_col2 = st.columns(2)
 with main_header_col1:
-
     with st.form("bond_form"):
         st.subheader("**Condiciones Faciales**")
         header_form_col1, header_form_col2, header_form_col3 = st.columns(3)
@@ -114,6 +114,8 @@ with main_header_col2:
             precio_sucio_placeholder.metric(label="Precio Sucio", value="0%")
             valor_nominal_placeholder = st.empty()
             valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
+            valor_TIR_inversion_placeholder = st.empty()
+            valor_TIR_inversion_placeholder.metric(label="TIR Inversión", value="0%")
 
         with col_results2:
             cupon_corrido_placeholder = st.empty()
@@ -163,7 +165,6 @@ if submitted:
         display_errors(errors, error_placeholders)
 
     else:
-
         df = generar_cashflows_df_tf(
             fecha_emision=fecha_emision,
             fecha_vencimiento=fecha_vencimiento,
@@ -191,16 +192,22 @@ if submitted:
         st.dataframe(df, column_config=config, use_container_width=True, height=900)
 
         # 🔹 Calculate new metric values
-        precio_sucio = calcular_precio_sucio_desde_VP(df)
+        precio_sucio = calcular_precio_sucio_desde_VP(df.copy())
         valor_giro = (precio_sucio / 100) * valor_nominal
         cupon_corrido = calcular_cupon_corrido(
-            df=df,
+            df=df.copy(),
             date_negociacion=fecha_negociacion,
             periodicidad=periodo_cupon,
             base_intereses=base_intereses,
         )
         precio_limpio = precio_sucio - cupon_corrido
         precio_limpio_venta = clasificar_precio_limpio(precio_limpio)
+        valor_TIR_inversion = calcular_tir_desde_df(
+            df=df.copy(),
+            columna_flujos="Flujo Pesos ($)",
+            valor_giro=valor_giro,
+            fecha_negociacion=fecha_negociacion,
+        )
 
         # 🔹 Update metrics dynamically using `st.empty()`
         precio_sucio_placeholder.metric(
@@ -216,6 +223,9 @@ if submitted:
         )
         precio_limpio_placeholder_venta.markdown(
             precio_limpio_venta.replace("\n", "  \n")
+        )
+        valor_TIR_inversion_placeholder.metric(
+            "**TIR Inversión**", f"{valor_TIR_inversion:.3f}%"
         )
 
         # Create a DataFrame with the values, using the category names as the index

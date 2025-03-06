@@ -1,8 +1,9 @@
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
-import pandas as pd
 import calendar
+from datetime import datetime
 from math import pow
+
+import pandas as pd
+from dateutil.relativedelta import relativedelta
 
 
 def generar_fechas(
@@ -56,15 +57,20 @@ def generar_fechas(
 
 
 def calcular_diferencias_fechas_pago_cupon(
-    lista_fechas: list[str], periodicidad: str, base_intereses: str
+    lista_fechas: list[str],
+    periodicidad: str,
+    base_intereses: str,
+    ignorar_bisiesto: bool = True,
 ):
     """
     Calcula la diferencia en días entre fechas consecutivas de una lista de fechas (Pago Cupon)
-    usando la convención 30/360 o 365/365.
+    usando la convención 30/360 o 365/365, con opción de ignorar años bisiestos.
 
     Args:
         lista_fechas (list[str]): Lista de fechas en formato 'DD/MM/YYYY'.
-        base_intereses (str): Base Intereses del cálculo ('30/360' o '365/365').
+        periodicidad (str): Periodicidad del pago.
+        base_intereses (str): Base de intereses ('30/360' o '365/365').
+        ignorar_bisiesto (bool): Si True, ignora el 29 de febrero en años bisiestos.
 
     Returns:
         list[int]: Lista de diferencias en días entre fechas consecutivas.
@@ -78,7 +84,6 @@ def calcular_diferencias_fechas_pago_cupon(
     diferencias_list = []
 
     for i in range(0, len(fechas)):
-
         if i == 0:
             fecha_anterior = calcular_fecha_anterior(
                 fecha=fechas[i],
@@ -94,6 +99,14 @@ def calcular_diferencias_fechas_pago_cupon(
         if base_intereses == "365/365":
             # Cálculo exacto de diferencia real en días
             diferencia = (fecha_actual - fecha_anterior).days
+
+            # 📌 Ignorar el 29 de febrero si la opción está activada
+            if ignorar_bisiesto:
+                for año in range(fecha_anterior.year, fecha_actual.year + 1):
+                    if calendar.isleap(año):  # Verifica si es bisiesto
+                        fecha_bisiesto = pd.Timestamp(year=año, month=2, day=29)
+                        if fecha_anterior <= fecha_bisiesto <= fecha_actual:
+                            diferencia -= 1  # Resta un día
 
         elif base_intereses == "30/360":
             # Extraemos año, mes y día y ajustamos a la convención 30/360
@@ -216,7 +229,9 @@ def calcular_flujo_pesos(valor_nominal: float, lista_cfs: list[float]):
     return flujo_pesos
 
 
-def convertir_nominal_a_efectiva_anual(tasa_nominal_negociacion: float, periodo: str):
+def convertir_tasa_nominal_a_efectiva_anual(
+    tasa_nominal_negociacion: float, periodo: str
+):
     """
     Convierte una tasa nominal a tasa efectiva anual (EA).
     :param tasa_nominal: Tasa nominal en porcentaje (ej. 18.1 para 18.1%)
@@ -244,33 +259,6 @@ def convertir_nominal_a_efectiva_anual(tasa_nominal_negociacion: float, periodo:
     tasa_efectiva_anual = (1 + (tasa_nominal_negociacion / 100) / n) ** n - 1
 
     return tasa_efectiva_anual * 100  # Convertir a porcentaje
-
-
-def tir_a_ea(tir: float, periodo: str):
-    """
-    Convierte una TIR en una Tasa Efectiva Anual (EA).
-
-    Parámetros:
-    tir (float): TIR en porcentaje (ejemplo: 1.45 para 1.45%)
-    periodo (str): Periodo de la TIR. Opciones: 'Mensual', 'Trimestral', 'Semestral', 'Anual'
-
-    Retorna:
-    float: Tasa Efectiva Anual en porcentaje
-    """
-    tir_decimal = tir / 100  # Convertir a decimal
-
-    if periodo == "Mensual":
-        ea = (1 + tir_decimal) ** 12 - 1
-    elif periodo == "Trimestral":
-        ea = (1 + tir_decimal) ** 4 - 1
-    elif periodo == "Semestral":
-        ea = (1 + tir_decimal) ** 2 - 1
-    elif periodo == "Anual":
-        ea = (1 + tir_decimal) ** 1 - 1
-    else:
-        raise ValueError("El periodo debe ser 'mensual', 'trimestral' o 'semestral'")
-
-    return ea * 100  # Convertir a porcentaje sin redondear
 
 
 def calcular_fecha_anterior(
@@ -325,3 +313,29 @@ def calcular_fecha_anterior(
         raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365'.")
 
     return fecha_calculada
+
+
+def sumar_tasas(tasa1: float, tasa2: float, modalidad: str):
+    """
+    Suma dos tasas de interés considerando su modalidad (nominal o efectiva).
+
+    :param tasa1: float, primera tasa de interés en formato decimal (ejemplo: 0.05 para 5%).
+    :param tasa2: float, segunda tasa de interés en formato decimal.
+    :param modalidad: str, "Nominal" o "EA" para indicar el tipo de tasa.
+    :param periodos: int, número de períodos de capitalización en un año (solo para tasas nominales).
+    :return: float, tasa total sumada en el mismo formato de entrada.
+
+    - Si la modalidad es "efectiva", se usa la fórmula de suma de tasas efectivas.
+    - Si la modalidad es "nominal", se suman directamente, asumiendo que tienen la misma periodicidad.
+    """
+    if modalidad == "EA":
+        tasa_total = ((1 + (tasa1 / 100)) * (1 + (tasa2 / 100)) - 1) * 100
+
+    elif modalidad == "Nominal":
+        tasa_total = (
+            tasa1 + tasa2
+        )  # Simplemente se suman si ambas son nominales con la misma periodicidad
+    else:
+        raise ValueError("Modalidad no válida. Usa 'nominal' o 'efectiva'.")
+
+    return tasa_total
