@@ -108,6 +108,7 @@ def procesar_tasa_flujos_real_ipc(
     periodicidad: str,
     tasa_anual_cupon: float,
     lista_fechas: list[str],
+    dias_cupon: list[int],
     modalidad: str,
     archivo,
     modo_ipc,
@@ -148,37 +149,55 @@ def procesar_tasa_flujos_real_ipc(
         datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in lista_fechas
     ]
 
-    # Fecha del Periodo anterior (inicio del cupon actual)
-    fecha_per_anterior = calcular_fecha_anterior(
-        fecha=min(fechas_cupones),
-        periodicidad=periodicidad,
-        base_intereses=base_dias_anio,
-        num_per=1,
-    )
-    tasa_per_anterior = sumar_spread_ipc(
-        tasa_spread=tasa_anual_cupon,
-        fecha=fecha_per_anterior,
-        modalidad=modalidad,
-        archivo=archivo,
-    )
-    tasa_fechas = sumar_spread_ipc_batch(
-        tasa_spread=tasa_anual_cupon,
-        lista_fechas=fechas_cupones,
-        modalidad=modalidad,
-        archivo=archivo,
-    )
-    # reemplazar por la anterior
-    tasa_fechas = shift_list_with_replacement(
-        tasa_fechas, shift=1, fill_value=tasa_per_anterior
-    )
+    if modo_ipc == "Inicio":
+        # Fecha del Periodo anterior (inicio del cupon actual)
+        fecha_per_anterior = calcular_fecha_anterior(
+            fecha=min(fechas_cupones),
+            periodicidad=periodicidad,
+            base_intereses=base_dias_anio,
+            num_per=1,
+        )
+        tasa_per_anterior = sumar_spread_ipc(
+            tasa_spread=tasa_anual_cupon,
+            fecha=fecha_per_anterior,
+            modalidad=modalidad,
+            archivo=archivo,
+        )
+        tasa_fechas = sumar_spread_ipc_batch(
+            tasa_spread=tasa_anual_cupon,
+            lista_fechas=fechas_cupones,
+            modalidad=modalidad,
+            archivo=archivo,
+        )
+        # reemplazar por la anterior
+        tasa_fechas = shift_list_with_replacement(
+            tasa_fechas, shift=1, fill_value=tasa_per_anterior
+        )
+        # (1 + tasa_ibr_spread_i) ** (dias_cupon[dias] / 365) - 1
+        # nominal
+        tasas_final = [
+            round((1 + (t / 100)) ** (dias_cupon[index] / 365) - 1, 5)
+            for index, t in enumerate(tasa_fechas)
+        ]
 
-    # nominal
-    tasas_final = [
-        round((t / 100) / periodos_por_anio[periodicidad], 5) for t in tasa_fechas
-    ]
+        # for display
+        tasa_fechas = [round(x - tasa_anual_cupon, 2) for x in tasa_fechas]
 
-    # for display
-    tasa_fechas = [round(x - tasa_anual_cupon, 2) for x in tasa_fechas]
+    else:
+
+        tasa_fechas = sumar_spread_ipc_batch(
+            tasa_spread=tasa_anual_cupon,
+            lista_fechas=fechas_cupones,
+            modalidad=modalidad,
+            archivo=archivo,
+        )
+        tasas_final = [
+            round((1 + (t / 100)) ** (dias_cupon[index] / 365) - 1, 5)
+            for index, t in enumerate(tasa_fechas)
+        ]
+
+        # for display
+        tasa_fechas = [round(x - tasa_anual_cupon, 2) for x in tasa_fechas]
 
     return tasas_final, tasa_fechas
 
@@ -307,5 +326,11 @@ def obtener_tasa_ipc_real_batch(lista_fechas: list[datetime.date], archivo):
 
     if df.empty:
         raise ValueError(f"No existen datos para las fechas {lista_fechas}")
+
+    fechas_faltantes = set(lista_fechas) - set(df.iloc[:, 0])
+    if fechas_faltantes:
+        raise ValueError(
+            f"No existen datos para las siguientes fechas: {sorted(fechas_faltantes)}. Por favor verificar archivo."
+        )
 
     return df.iloc[:, 1].tolist()  # Retorna una lista con los valores de la tasa IPC

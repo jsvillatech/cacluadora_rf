@@ -1,6 +1,6 @@
 import streamlit as st
 
-from data_handling.ipc_data import generar_cashflows_df_ipc
+from data_handling.ipc_data import generar_cashflows_df_ipc, generar_flujos_real_df_ipc
 from data_handling.shared_data import (
     calcular_cupon_corrido,
     calcular_precio_sucio_desde_VP,
@@ -91,7 +91,7 @@ with main_header_col1:
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
-                format="%0.3f",
+                format="%0.4f",
             )
             tasa_cupon_error = st.empty()
             base_intereses = st.selectbox(
@@ -111,7 +111,7 @@ with main_header_col1:
                 max_value=100.0,
                 value=0.0,
                 step=0.01,
-                format="%0.3f",
+                format="%0.4f",
             )
             tasa_mercado_error = st.empty()
 
@@ -224,7 +224,7 @@ if submitted:
                 st.success("Datos de BanRep utilizados en el cálculo.")
 
             df_errors_placeholder = st.empty()
-            df = generar_cashflows_df_ipc(
+            df_datos = generar_cashflows_df_ipc(
                 fecha_emision=fecha_emision,
                 fecha_vencimiento=fecha_vencimiento,
                 fecha_negociacion=fecha_negociacion,
@@ -238,8 +238,23 @@ if submitted:
                 modalidad=modalidad_tasa_cupon,
                 modo_ipc=modalidad_tasa_ipc,
             )
-            if isinstance(df, dict) and "error" in df:
-                df_errors_placeholder.error(df["error"])
+            df_flujos = generar_flujos_real_df_ipc(
+                fecha_emision=fecha_emision,
+                fecha_vencimiento=fecha_vencimiento,
+                fecha_negociacion=fecha_negociacion,
+                periodo_cupon=periodo_cupon,
+                base_intereses=base_intereses,
+                tasa_cupon=tasa_cupon,
+                valor_nominal_base=valor_nominal_base,
+                valor_nominal=valor_nominal,
+                archivo_subido=uploaded_file,
+                modalidad=modalidad_tasa_cupon,
+                modo_ipc=modalidad_tasa_ipc,
+            )
+            if isinstance(df_datos, dict) and "error" in df_datos:
+                df_errors_placeholder.error(df_datos["error"])
+            if isinstance(df_flujos, dict) and "error" in df_flujos:
+                df_errors_placeholder.error(df_flujos["error"])
             else:
                 # show df
                 config = {
@@ -251,14 +266,16 @@ if submitted:
                     ),
                 }
                 tabla1_place_holder.dataframe(
-                    df, use_container_width=True, height=800, column_config=config
+                    df_datos, use_container_width=True, height=800, column_config=config
                 )
-
+                tabla2_place_holder.dataframe(
+                    df_flujos, use_container_width=True, height=800
+                )
                 # Calculate new metric values
-                precio_sucio = calcular_precio_sucio_desde_VP(df)
+                precio_sucio = calcular_precio_sucio_desde_VP(df_datos)
                 valor_giro = (precio_sucio / 100) * valor_nominal
                 cupon_corrido = calcular_cupon_corrido(
-                    df=df,
+                    df=df_datos,
                     date_negociacion=fecha_negociacion,
                     periodicidad=periodo_cupon,
                     base_intereses=base_intereses,
@@ -272,8 +289,8 @@ if submitted:
                     archivo=uploaded_file,
                 )
                 valor_TIR_inversion = calcular_tir_desde_df(
-                    df=df,
-                    columna_flujos="Flujo Pesos ($)",
+                    df=df_flujos,
+                    columna_flujos="Flujo Pesos Reales(COP$)",
                     valor_giro=valor_giro,
                     fecha_negociacion=fecha_negociacion,
                 )
