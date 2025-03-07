@@ -339,3 +339,15 @@ def sumar_tasas(tasa1: float, tasa2: float, modalidad: str):
         raise ValueError("Modalidad no válida. Usa 'nominal' o 'efectiva'.")
 
     return tasa_total
+
+
+def restar_tasas_efectivas(tasa1: float, tasa2: float):
+    """
+    Resta dos tasas de interés efectivas.
+
+    :param tasa1: float, primera tasa de interés en porcentaje.
+    :param tasa2: float, segunda tasa de interés en porcentaje.
+    :return: float, resultado de la resta en porcentaje.
+    """
+
+    return ((1 + tasa1) / (1 + tasa2) - 1) * 100

@@ -256,6 +256,9 @@ if submitted:
             if isinstance(df_flujos, dict) and "error" in df_flujos:
                 df_errors_placeholder.error(df_flujos["error"])
             else:
+                # Inicia index desde 1.
+                df_datos.index = range(1, len(df_datos) + 1)
+                df_flujos.index = range(1, len(df_flujos) + 1)
                 # show df
                 config = {
                     "CFt": st.column_config.NumberColumn(
@@ -272,10 +275,10 @@ if submitted:
                     df_flujos, use_container_width=True, height=800
                 )
                 # Calculate new metric values
-                precio_sucio = calcular_precio_sucio_desde_VP(df_datos)
+                precio_sucio = calcular_precio_sucio_desde_VP(df_datos.copy())
                 valor_giro = (precio_sucio / 100) * valor_nominal
                 cupon_corrido = calcular_cupon_corrido(
-                    df=df_datos,
+                    df=df_datos.copy(),
                     date_negociacion=fecha_negociacion,
                     periodicidad=periodo_cupon,
                     base_intereses=base_intereses,
@@ -289,7 +292,7 @@ if submitted:
                     archivo=uploaded_file,
                 )
                 valor_TIR_inversion = calcular_tir_desde_df(
-                    df=df_flujos,
+                    df=df_flujos.copy(),
                     columna_flujos="Flujo Pesos Reales(COP$)",
                     valor_giro=valor_giro,
                     fecha_negociacion=fecha_negociacion,
