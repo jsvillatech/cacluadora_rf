@@ -11,16 +11,15 @@ Esta aplicación es una **calculadora financiera** que permite evaluar activos d
 ✅ Cálculo en tiempo real basado en datos ingresados.<br>
 
 ## 🛠 Tecnologías Utilizadas
-- **Python 3.x**
+- **Python 3.12
 - **Streamlit**
 - **Pandas** (para manipulación de datos)
-- **Matplotlib / Plotly** (para visualización de gráficos)
 
 ## 🔧 Instalación y Uso
 1. **Clonar el repositorio**:
    ```sh
-   git clone https://github.com/tu-usuario/tu-repo.git
-   cd tu-repo
+   git clone [https://github.com/tu-usuario/tu-repo.git](https://github.com/jsvillatech/cacluadora_rf.git)
+   cd calculadora_rf
    ```
 
 2. **Crear un entorno virtual (opcional, recomendado)**:
