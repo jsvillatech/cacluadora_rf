@@ -254,3 +254,51 @@ def calcular_tir_desde_df(
     tir = xirr(lista_de_tuplas)
 
     return tir * 100
+
+
+def calcular_macaulay(df, columna, precio_sucio):
+    """
+    Calcula la suma de los valores de una columna de un DataFrame y la divide entre precio_sucio.
+
+    Parámetros
+    ----------
+    df : pandas.DataFrame
+        DataFrame que contiene la columna a sumar.
+    columna : str
+        Nombre de la columna cuyos valores se desean sumar.
+    precio_sucio : float
+        Valor en el cual se dividirá la suma de la columna. Debe ser distinto de cero.
+
+    Retorna
+    -------
+    float
+        Resultado de dividir la suma de la columna entre precio_sucio.
+
+    Ejemplo
+    -------
+    >>> import pandas as pd
+    >>> data = {'ventas': [100.0, 200.0, 300.0]}
+    >>> df = pd.DataFrame(data)
+    >>> calcular_macaulay(df, 'ventas', 10.0)
+    60.0
+    """
+    if precio_sucio == 0:
+        raise ValueError("El valor de precio_sucio no puede ser cero.")
+
+    suma_columna = df[columna].sum()
+    return suma_columna / precio_sucio
+
+
+def calcular_duracion_mod(macaulay: float, tasa: float):
+    """
+    Calcula la duración modificada a partir de la duración Macaulay.
+
+    Parámetros:
+    - macaulay: Duración Macaulay (float).
+    - tasa: Tasa de interés en porcentaje (float).
+
+    Retorna:
+    - La duración modificada, calculada como:
+      macaulay / (1 + tasa/100)
+    """
+    return macaulay / (1 + tasa / 100)

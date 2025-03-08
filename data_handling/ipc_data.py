@@ -10,6 +10,7 @@ from logic.shared_logic import (
     calcular_diferencias_fechas_pago_cupon,
     calcular_flujo_pesos,
     calcular_numero_dias_descuento_cupon,
+    calcular_t_pv_cf,
     calcular_vp_cfs,
     generar_fechas,
 )
@@ -80,14 +81,16 @@ def generar_cashflows_df_ipc(
         lista_dias_descuento=dias_descuento_cupon,
     )
     flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)
-
+    t_pv_cf = calcular_t_pv_cf(
+        vp_cft=vp_cfs, conteo_dias_descuento=dias_descuento_cupon
+    )
     cashflows = {
         "Fechas Cupón": fechas_cupon,
         "Días Cupón": dias_cupon,
         "Días Dcto Cupón": dias_descuento_cupon,
         "CFt": cf_t,
         "VP CF": vp_cfs,
-        # "t*PV CF": round(t_pv_cf, 8),
+        "t*PV CF": t_pv_cf,
         # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
         "Flujo Pesos ($)": flujo_pesos,
     }
