@@ -2,6 +2,7 @@ import pandas as pd
 
 from logic.ipc_logic import (
     procesar_tasa_cupon_ipc_datos,
+    procesar_tasa_flujos_real_ipc,
     sumar_spread_ipc,
 )
 from logic.shared_logic import (
@@ -97,3 +98,68 @@ def generar_cashflows_df_ipc(
             raise ValueError(f"Column '{key}' has inconsistent length!")
 
     return pd.DataFrame(cashflows)
+
+
+def generar_flujos_real_df_ipc(
+    fecha_emision,
+    fecha_vencimiento,
+    fecha_negociacion,
+    periodo_cupon,
+    base_intereses,
+    tasa_cupon,
+    valor_nominal_base,
+    valor_nominal,
+    archivo_subido,
+    modalidad,
+    modo_ipc,
+):
+    """
+    Returns a complete bond cash flow DataFrame.
+    """
+    fechas_cupon = generar_fechas(
+        fecha_inicio=fecha_emision,
+        fecha_fin=fecha_vencimiento,
+        fecha_negociacion=fecha_negociacion,
+        periodicidad=periodo_cupon,
+    )
+    dias_cupon = calcular_diferencias_fechas_pago_cupon(
+        lista_fechas=fechas_cupon,
+        periodicidad=periodo_cupon,
+        base_intereses=base_intereses,
+    )
+    # ⚠️ Handling missing IBR rate
+    try:
+        tasas, tasas_ibr = procesar_tasa_flujos_real_ipc(
+            base_dias_anio=base_intereses,
+            periodicidad=periodo_cupon,
+            tasa_anual_cupon=tasa_cupon,
+            lista_fechas=fechas_cupon,
+            dias_cupon=dias_cupon,
+            modalidad=modalidad,
+            archivo=archivo_subido,
+            modo_ipc=modo_ipc,
+        )
+    except ValueError as e:
+        return {"error": str(e)}  # Return error message instead of crashing
+
+    cf_t = calcular_cupones_futuros_cf(
+        valor_nominal_base=valor_nominal_base, tasas_periodicas=tasas
+    )
+
+    flujo_pesos = calcular_flujo_pesos(valor_nominal=valor_nominal, lista_cfs=cf_t)
+
+    flujos_reales = {
+        "Fechas Cupón": fechas_cupon,
+        "Flujo Pesos Reales(COP$)": flujo_pesos,
+        "Tasas IBR % Aplicadas": tasas_ibr,
+    }
+
+    # 🔍 Ensure all columns have the same length
+    for key, value in flujos_reales.items():
+        if len(value) != len(dias_cupon):
+            raise ValueError(f"Column '{key}' has inconsistent length!")
+
+    return pd.DataFrame(flujos_reales)
+
+
+# TODO: Desarrollar Duración Macaulay, Duración Modificada, y Dvo1

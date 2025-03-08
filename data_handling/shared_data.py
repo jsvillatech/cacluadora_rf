@@ -229,15 +229,17 @@ def calcular_tir_desde_df(
 ):
     """
     Calcula la Tasa Interna de Retorno (TIR) a partir de un DataFrame con flujos de efectivo.
-
-    :param df: DataFrame de pandas con los datos de flujo de efectivo.
-    :param columna_flujos: Nombre de la columna que contiene los flujos de caja.
-    :param valor_giro: Valor nominal inicial de la inversión (debe ser negativo).
-    :param fecha_negociacion: Fecha de negociacion.
-    :return: TIR en porcentaje.
     """
 
+    # Convertir la columna de fechas a datetime (si no lo es ya)
+    df["Fechas Cupón"] = pd.to_datetime(df["Fechas Cupón"], format="%d/%m/%Y")
+
+    # Verificar si hay valores nulos después de la conversión
+    if df["Fechas Cupón"].isna().any():
+        raise ValueError("❌ La columna 'Fechas Cupón' contiene valores no válidos.")
+
     fechas = df["Fechas Cupón"].dt.strftime("%d/%m/%Y").tolist()
+
     # agregar fecha de negociacion
     fechas.insert(0, fecha_negociacion.strftime("%d/%m/%Y"))
     fechas_cupones = [datetime.datetime.strptime(f, "%d/%m/%Y").date() for f in fechas]
