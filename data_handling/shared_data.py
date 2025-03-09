@@ -302,3 +302,21 @@ def calcular_duracion_mod(macaulay: float, tasa: float):
       macaulay / (1 + tasa/100)
     """
     return macaulay / (1 + tasa / 100)
+
+
+def calcular_dv01(d_mod: float, valor_giro: float):
+    """
+    Calcula el DV01 (Dollar Value of 1 basis point).
+
+    El DV01 representa cuánto cambia el precio (en dólares)
+    ante una variación de 1 punto base (0.01%) en la tasa de interés.
+
+    Parámetros:
+    - d_mod (float): Duración modificada del bono.
+    - valor_giro (float): Valor de referencia (nominal o de mercado)
+                          sobre el cual se calcula el DV01.
+
+    Retorna:
+    - float: El DV01, calculado como d_mod * valor_giro / 10000.
+    """
+    return (d_mod * valor_giro) / 10000

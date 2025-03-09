@@ -403,3 +403,55 @@ def calcular_t_pv_cf(vp_cft, conteo_dias_descuento, base_intereses="365/365"):
         resultado.append(vp * t)
 
     return resultado
+
+
+def calcular_t_pv_cf_t1(t_vp_cft, conteo_dias_descuento, base_intereses="365/365"):
+    """
+    Calcula una lista de valores resultantes de multiplicar cada valor presente (t*VP CFt)
+    por el factor de tiempo +1, donde el factor se obtiene dividiendo el número de días
+    (de cada periodo) entre la base de intereses correspondiente (365 para "365/365" o 360 para "30/360").
+
+    Parámetros
+    ----------
+    t*vp_cft : list of float
+        Lista con los valores presentes (VP CFt) correspondientes a cada periodo.
+    base_intereses : str
+        String que indica la base de cálculo para el tiempo. Debe ser "365/365" o "30/360".
+    conteo_dias_descuento : list of int
+        Lista de días que se utilizará para el factor de tiempo (t = día / denominador).
+
+    Retorna
+    -------
+    list of float
+        Lista de valores calculados, donde cada elemento es el resultado de multiplicar
+        vp_cft[i] por conteo_dias_descuento[i] / denominador, dependiendo de la base de intereses.
+
+    Ejemplo
+    -------
+    >>> valores_vp = [1000.0, 2000.0, 3000.0]
+    >>> base = "365/365"
+    >>> dias = [30, 60, 90]
+    >>> calcular_vp_diario(valores_vp, base, dias)
+    [82.1917808219178, 164.3835616438356, 246.5753424657534]
+    """
+    # Verificar que las listas vp_cft y conteo_dias tengan la misma longitud
+    if len(t_vp_cft) != len(conteo_dias_descuento):
+        raise ValueError(
+            "Las listas vp_cft y conteo_dias deben tener la misma longitud."
+        )
+
+    # Seleccionar el denominador en base al parámetro base_intereses
+    if base_intereses == "365/365":
+        denominador = 365
+    elif base_intereses == "30/360":
+        denominador = 360
+    else:
+        raise ValueError('El parámetro "base_intereses" debe ser "365/365" o "30/360".')
+
+    # Calcular la lista resultante
+    resultado = []
+    for t_vp_cf, dias in zip(t_vp_cft, conteo_dias_descuento):
+        t = dias / denominador
+        resultado.append(t_vp_cf * (t + 1))
+
+    return resultado

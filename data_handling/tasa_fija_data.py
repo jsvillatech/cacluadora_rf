@@ -6,6 +6,7 @@ from logic.shared_logic import (
     calcular_flujo_pesos,
     calcular_numero_dias_descuento_cupon,
     calcular_t_pv_cf,
+    calcular_t_pv_cf_t1,
     calcular_vp_cfs,
     generar_fechas,
 )
@@ -60,6 +61,9 @@ def generar_cashflows_df_tf(
     t_pv_cf = calcular_t_pv_cf(
         vp_cft=vp_cfs, conteo_dias_descuento=dias_descuento_cupon
     )
+    t_pv_cf_t1 = calcular_t_pv_cf_t1(
+        t_vp_cft=t_pv_cf, conteo_dias_descuento=dias_descuento_cupon
+    )
 
     cashflows = {
         "Fechas Cupón": fechas_cupon,
@@ -68,7 +72,7 @@ def generar_cashflows_df_tf(
         "CFt": cf_t,
         "VP CF": vp_cfs,
         "t*PV CF": t_pv_cf,
-        # "(t*PV CF)*(t+1)": round(t_pv_cf_t1, 8),
+        "(t*PV CF)*(t+1)": t_pv_cf_t1,
         "Flujo Pesos ($)": flujo_pesos,
     }
 

@@ -267,6 +267,14 @@ if submitted:
                     "VP CF": st.column_config.NumberColumn(
                         "VP CF", format="%.6f%%", help="Valor Presente del Cupón"
                     ),
+                    "t*PV CF": st.column_config.NumberColumn(
+                        "t*PV CF", format="%.6f%%", help="Valor Presente * t"
+                    ),
+                    "(t*PV CF)*(t+1)": st.column_config.NumberColumn(
+                        "(t*PV CF)*(t+1)",
+                        format="%.6f%%",
+                        help="t*Valor Presente * t+1",
+                    ),
                 }
                 tabla1_place_holder.dataframe(
                     df_datos, use_container_width=True, height=800, column_config=config
