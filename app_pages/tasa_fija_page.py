@@ -3,6 +3,9 @@ import streamlit as st
 
 from data_handling.shared_data import (
     calcular_cupon_corrido,
+    calcular_duracion_mod,
+    calcular_dv01,
+    calcular_macaulay,
     calcular_precio_sucio_desde_VP,
     calcular_tir_desde_df,
     clasificar_precio_limpio,
@@ -116,16 +119,24 @@ with main_header_col2:
             valor_nominal_placeholder.metric(label="Valor Nominal", value="$0")
             valor_TIR_inversion_placeholder = st.empty()
             valor_TIR_inversion_placeholder.metric(label="TIR Inversión", value="0%")
+            dv01_placeholder = st.empty()
+            dv01_placeholder.metric(label="DV01", value="$0")
 
         with col_results2:
             cupon_corrido_placeholder = st.empty()
             cupon_corrido_placeholder.metric(label="Cupón Corrido", value="0%")
             valor_giro_placeholder = st.empty()
             valor_giro_placeholder.metric(label="Valor de Giro", value="$0")
+            duracion_macaulay_placeholder = st.empty()
+            duracion_macaulay_placeholder.metric(
+                label="Duración Macaulay (Años)", value="0"
+            )
+
         with col_results3:
             precio_limpio_placeholder = st.empty()
             precio_limpio_placeholder.metric(label="Precio Limpio", value="0%")
             precio_limpio_placeholder_venta = st.empty()
+            duracion_modficada_placeholder = st.empty()
         label_chart_giro_place_holder = st.empty()
         result_chart_giro_place_holder = st.empty()
         label_chart_tasa_place_holder = st.empty()
@@ -187,6 +198,12 @@ if submitted:
             "VP CF": st.column_config.NumberColumn(
                 "VP CF", format="%.6f%%", help="Valor Presente del Cupón"
             ),
+            "t*PV CF": st.column_config.NumberColumn(
+                "t*PV CF", format="%.6f%%", help="Valor Presente * t"
+            ),
+            "(t*PV CF)*(t+1)": st.column_config.NumberColumn(
+                "(t*PV CF)*(t+1)", format="%.6f%%", help="t*Valor Presente * t+1"
+            ),
         }
         # show DF
         st.dataframe(df, column_config=config, use_container_width=True, height=900)
@@ -208,6 +225,11 @@ if submitted:
             valor_giro=valor_giro,
             fecha_negociacion=fecha_negociacion,
         )
+        d_macaulay = calcular_macaulay(
+            df=df.copy(), columna="t*PV CF", precio_sucio=precio_sucio
+        )
+        d_mod = calcular_duracion_mod(macaulay=d_macaulay, tasa=tasa_mercado)
+        dv01 = calcular_dv01(d_mod=d_mod, valor_giro=valor_giro)
 
         # 🔹 Update metrics dynamically using `st.empty()`
         precio_sucio_placeholder.metric(
@@ -227,6 +249,11 @@ if submitted:
         valor_TIR_inversion_placeholder.metric(
             "**TIR Inversión**", f"{valor_TIR_inversion:.3f}%"
         )
+        duracion_macaulay_placeholder.metric(
+            "**Duración Macaulay (Años)**", f"{d_macaulay:.3f}"
+        )
+        duracion_modficada_placeholder.metric("**Duración\\***", f"{d_mod:.3f}")
+        dv01_placeholder.write(f"**DV01:**  \n**${dv01:,.2f}**")
 
         # Create a DataFrame with the values, using the category names as the index
         datos_giro = {"Value": [valor_giro, valor_nominal]}
