@@ -320,3 +320,27 @@ def calcular_dv01(d_mod: float, valor_giro: float):
     - float: El DV01, calculado como d_mod * valor_giro / 10000.
     """
     return (d_mod * valor_giro) / 10000
+
+
+def calcular_convexidad(
+    df: pd.DataFrame, columna: str, tasa_mercado: float, precio_sucio: float
+) -> float:
+    """
+    Calcula la convexidad de un bono.
+
+    Parámetros:
+    df (pd.DataFrame): DataFrame con los datos del bono.
+    columna (str): Nombre de la columna que contiene (t * PV(CF)) * (t+1).
+    tasa_mercado (float): Tasa de mercado (r).
+    precio_sucio (float): Precio sucio del bono (P).
+
+    Retorna:
+    float: Convexidad del bono.
+    """
+    if columna not in df.columns:
+        raise ValueError(f"La columna '{columna}' no existe en el DataFrame.")
+
+    suma_columna = df[columna].sum()
+    ajuste = 1 / (precio_sucio * ((1 + tasa_mercado / 100) ** 2))
+
+    return suma_columna * ajuste
