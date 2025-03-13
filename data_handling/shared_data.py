@@ -323,8 +323,13 @@ def calcular_dv01(d_mod: float, valor_giro: float):
 
 
 def calcular_convexidad(
-    df: pd.DataFrame, columna: str, tasa_mercado: float, precio_sucio: float
-) -> float:
+    df: pd.DataFrame,
+    columna: str,
+    tasa_mercado: float,
+    precio_sucio: float,
+    periodicidad: str,
+    base_intereses: str,
+):
     """
     Calcula la convexidad de un bono.
 
@@ -333,14 +338,49 @@ def calcular_convexidad(
     columna (str): Nombre de la columna que contiene (t * PV(CF)) * (t+1).
     tasa_mercado (float): Tasa de mercado (r).
     precio_sucio (float): Precio sucio del bono (P).
+    periodicidad (str): Periodicidad ('Mensual', 'Trimestral', 'Semestral', 'Anual').
+    base_intereses (str): Base Intereses ('30/360' o '365/365').
 
     Retorna:
     float: Convexidad del bono.
     """
+    dias_cupon = 0
+
     if columna not in df.columns:
         raise ValueError(f"La columna '{columna}' no existe en el DataFrame.")
 
+    if base_intereses == "365/365":
+        if periodicidad == "Mensual":
+            dias_cupon = 30
+        elif periodicidad == "Trimestral":
+            dias_cupon = 92
+        elif periodicidad == "Semestral":
+            dias_cupon = 182
+        elif periodicidad == "Anual":
+            dias_cupon = 365
+        else:
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
+    elif base_intereses == "30/360":
+        if periodicidad == "Mensual":
+            dias_cupon = 30
+        elif periodicidad == "Trimestral":
+            dias_cupon = 90
+        elif periodicidad == "Semestral":
+            dias_cupon = 180
+        elif periodicidad == "Anual":
+            dias_cupon = 360
+        else:
+            raise ValueError(
+                "Periodicidad no válida. Usa 'Mensual', 'Trimestral', 'Semestral' o 'Anual'."
+            )
+    else:
+        raise ValueError("Base Intereses no válida. Usa '30/360' o '365/365'.")
+
     suma_columna = df[columna].sum()
-    ajuste = 1 / (precio_sucio * ((1 + tasa_mercado / 100) ** 2))
+    ajuste = 1 / (
+        precio_sucio * (((1 + tasa_mercado / 100) ** (dias_cupon / 365)) ** 2)
+    )
 
     return suma_columna * ajuste

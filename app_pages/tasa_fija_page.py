@@ -238,6 +238,8 @@ if submitted:
             columna="(t*PV CF)*(t+1)",
             tasa_mercado=tasa_mercado,
             precio_sucio=precio_sucio,
+            periodicidad=periodo_cupon,
+            base_intereses=base_intereses,
         )
 
         # 🔹 Update metrics dynamically using `st.empty()`
@@ -263,7 +265,7 @@ if submitted:
         )
         duracion_modficada_placeholder.metric("**Duración\\***", f"{d_mod:.3f}")
         dv01_placeholder.write(f"**DV01:**  \n**${dv01:,.2f}**")
-        convexidad_placeholder.write(f"**Convexidad**  \n**${conv:,.3f}**")
+        convexidad_placeholder.write(f"**Convexidad**  \n**{conv:,.3f}**")
 
         # Create a DataFrame with the values, using the category names as the index
         datos_giro = {"Value": [valor_giro, valor_nominal]}

@@ -7,6 +7,7 @@ from data_handling.ibr_data import (
     obtener_tasa_negociacion_EA,
 )
 from data_handling.shared_data import (
+    calcular_convexidad,
     calcular_cupon_corrido,
     calcular_duracion_mod,
     calcular_dv01,
@@ -160,6 +161,8 @@ with main_header_col2:
             )
             dv01_placeholder = st.empty()
             dv01_placeholder.metric(label="DV01", value="$0")
+            convexidad_placeholder = st.empty()
+            convexidad_placeholder.metric(label="Convexidad", value="0")
 
         with col_results2:
             cupon_corrido_placeholder = st.empty()
@@ -333,6 +336,14 @@ if submitted:
                     macaulay=d_macaulay, tasa=valor_TIR_negociar
                 )
                 dv01 = calcular_dv01(d_mod=d_mod, valor_giro=valor_giro)
+                conv = calcular_convexidad(
+                    df=df_datos,
+                    columna="(t*PV CF)*(t+1)",
+                    tasa_mercado=tasa_mercado,
+                    precio_sucio=precio_sucio,
+                    periodicidad=periodo_cupon,
+                    base_intereses=base_intereses,
+                )
 
                 # Update metrics dynamically
                 precio_sucio_placeholder.metric(
@@ -362,6 +373,7 @@ if submitted:
                 )
                 duracion_modficada_placeholder.metric("**Duración\\***", f"{d_mod:.3f}")
                 dv01_placeholder.write(f"**DV01:**  \n**${dv01:,.2f}**")
+                convexidad_placeholder.write(f"**Convexidad**  \n**{conv:,.3f}**")
 
                 # Create a DataFrame with the values, using the category names as the index
                 datos_giro = {"Value": [valor_giro, valor_nominal]}
