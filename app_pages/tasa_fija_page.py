@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from data_handling.shared_data import (
+    calcular_convexidad,
     calcular_cupon_corrido,
     calcular_duracion_mod,
     calcular_dv01,
@@ -131,6 +132,8 @@ with main_header_col2:
             duracion_macaulay_placeholder.metric(
                 label="Duración Macaulay (Años)", value="0"
             )
+            convexidad_placeholder = st.empty()
+            convexidad_placeholder.metric(label="Convexidad", value="0")
 
         with col_results3:
             precio_limpio_placeholder = st.empty()
@@ -230,6 +233,14 @@ if submitted:
         )
         d_mod = calcular_duracion_mod(macaulay=d_macaulay, tasa=tasa_mercado)
         dv01 = calcular_dv01(d_mod=d_mod, valor_giro=valor_giro)
+        conv = calcular_convexidad(
+            df=df,
+            columna="(t*PV CF)*(t+1)",
+            tasa_mercado=tasa_mercado,
+            precio_sucio=precio_sucio,
+            periodicidad=periodo_cupon,
+            base_intereses=base_intereses,
+        )
 
         # 🔹 Update metrics dynamically using `st.empty()`
         precio_sucio_placeholder.metric(
@@ -254,6 +265,7 @@ if submitted:
         )
         duracion_modficada_placeholder.metric("**Duración\\***", f"{d_mod:.3f}")
         dv01_placeholder.write(f"**DV01:**  \n**${dv01:,.2f}**")
+        convexidad_placeholder.write(f"**Convexidad**  \n**{conv:,.3f}**")
 
         # Create a DataFrame with the values, using the category names as the index
         datos_giro = {"Value": [valor_giro, valor_nominal]}
