@@ -366,8 +366,8 @@ if submitted:
                     "**Duración Macaulay (Años)**", f"{d_macaulay:.3f}"
                 )
                 duracion_modficada_placeholder.metric("**Duración\\***", f"{d_mod:.3f}")
-                dv01_placeholder.write(f"**DV01:**  \n**${dv01:,.2f}**")
-                convexidad_placeholder.write(f"**Convexidad**  \n**{conv:,.3f}**")
+                dv01_placeholder.metric("**DV01:**", "${:,.2f}".format(dv01))
+                convexidad_placeholder.metric("**Convexidad**", f"{conv:,.3f}")
 
                 # Create a DataFrame with the values, using the category names as the index
                 datos_giro = {"Value": [valor_giro, valor_nominal]}
