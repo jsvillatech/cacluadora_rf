@@ -97,7 +97,7 @@ with main_header_col1:
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
-                step=0.01,
+                step=0.5,
                 format="%0.4f",
             )
             tasa_cupon_error = st.empty()
@@ -117,7 +117,7 @@ with main_header_col1:
                 min_value=0.0,
                 max_value=100.0,
                 value=0.0,
-                step=0.01,
+                step=0.5,
                 format="%0.4f",
             )
             tasa_mercado_error = st.empty()
@@ -135,7 +135,7 @@ with main_header_col1:
                 min_value=0.0,
                 max_value=1000000.0,
                 value=100.00,
-                step=0.01,
+                step=0.5,
                 format="%0.2f",
             )
             valor_nominal_base_error = st.empty()
