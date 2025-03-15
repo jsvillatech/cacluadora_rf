@@ -158,7 +158,7 @@ def generar_flujos_real_df_ipc(
     flujos_reales = {
         "Fechas Cupón": fechas_cupon,
         "Flujo Pesos Reales(COP$)": flujo_pesos,
-        "Tasas IBR % Aplicadas": tasas_ibr,
+        # "Tasas IBR % Aplicadas": tasas_ibr,
     }
 
     # 🔍 Ensure all columns have the same length
@@ -167,6 +167,3 @@ def generar_flujos_real_df_ipc(
             raise ValueError(f"Column '{key}' has inconsistent length!")
 
     return pd.DataFrame(flujos_reales)
-
-
-# TODO: Desarrollar Duración Macaulay, Duración Modificada, y Dvo1
