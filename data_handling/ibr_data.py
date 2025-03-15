@@ -150,7 +150,7 @@ def generar_flujos_real_df_ibr(
     flujos_reales = {
         "Fechas Cupón": fechas_cupon,
         "Flujo Pesos Reales(COP$)": flujo_pesos,
-        "Tasas IBR % Aplicadas": tasas_ibr,
+        # "Tasas IBR % Aplicadas": tasas_ibr,
     }
 
     # 🔍 Ensure all columns have the same length
